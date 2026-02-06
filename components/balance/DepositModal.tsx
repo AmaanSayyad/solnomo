@@ -1,20 +1,11 @@
-'use client';
-
-/**
- * DepositModal Component
- * Modal for depositing USDC tokens into house balance
- * 
- * Task: 7.1 Update DepositModal for Sui
- * Requirements: 2.1, 2.2, 2.4, 2.5, 9.3, 14.2
- */
-
 import React, { useState, useEffect } from 'react';
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useOverflowStore } from '@/lib/store';
 import { useToast } from '@/lib/hooks/useToast';
-import { buildDepositTransaction, getUSDCBalance } from '@/lib/sui/client';
+import { buildDepositTransaction, getSOLBalance } from '@/lib/solana/client';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -32,15 +23,16 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   const [amount, setAmount] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [usdcBalance, setUsdcBalance] = useState<number>(0);
-  
+  const [solBalance, setSolBalance] = useState<number>(0);
+
   const { address, depositFunds, houseBalance } = useOverflowStore();
   const toast = useToast();
-  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
-  
+  const { connection } = useConnection();
+  const { sendTransaction } = useWallet();
+
   // Quick select amounts
-  const quickAmounts = [1, 5, 10, 25];
-  
+  const quickAmounts = [0.1, 0.5, 1, 5];
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
@@ -49,170 +41,144 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       setIsLoading(false);
     }
   }, [isOpen]);
-  
-  // Debug: Log amount changes
+
+  // Fetch SOL balance when modal opens or address changes
   useEffect(() => {
-    console.log('Amount state changed to:', amount);
-    console.log('Deposit button should be enabled:', !isLoading && amount && parseFloat(amount || '0') > 0);
-  }, [amount, isLoading]);
-  
-  // Fetch USDC balance when modal opens or address changes
-  useEffect(() => {
-    if (isOpen && address) {
-      getUSDCBalance(address).then(setUsdcBalance).catch(console.error);
-    }
-  }, [isOpen, address]);
-  
-  /**
-   * Validate deposit amount
-   * Returns error message if invalid, null if valid
-   * Requirements: 2.1 - Amount must be greater than zero
-   */
+    let mounted = true;
+
+    const fetchBalance = async () => {
+      if (!isOpen || !address) return;
+
+      try {
+        console.log('Fetching SOL balance for:', address);
+        // Use the connection from the hook for consistency with the provider
+        const publicKey = new PublicKey(address);
+        const balanceLamports = await connection.getBalance(publicKey, 'confirmed');
+        const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
+
+        if (mounted) {
+          console.log('Fetched balance:', balanceSOL);
+          setSolBalance(balanceSOL);
+        }
+      } catch (err) {
+        console.error('Failed to fetch SOL balance in modal:', err);
+        // Fallback to the client method if connection hook fails
+        try {
+          const bal = await getSOLBalance(address);
+          if (mounted) setSolBalance(bal);
+        } catch (innerErr) {
+          console.error('Fallback balance fetch also failed:', innerErr);
+        }
+      }
+    };
+
+    fetchBalance();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, address, connection]);
+
   const validateAmount = (value: string): string | null => {
     if (!value || value.trim() === '') {
       return 'Please enter an amount';
     }
-    
+
     const numValue = parseFloat(value);
-    
+
     if (isNaN(numValue)) {
       return 'Please enter a valid number';
     }
-    
+
     if (numValue <= 0) {
       return 'Amount must be greater than zero';
     }
-    
-    if (numValue > usdcBalance) {
-      return 'Insufficient USDC balance';
+
+    if (numValue > solBalance) {
+      return 'Insufficient SOL balance';
     }
-    
+
     return null;
   };
-  
-  /**
-   * Handle amount input change
-   */
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('Amount changed:', value);
-    
-    // Allow empty string, numbers, and decimal point
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setAmount(value);
       setError(null);
     }
   };
-  
-  /**
-   * Handle quick select button click
-   */
+
   const handleQuickSelect = (value: number) => {
-    console.log('Quick select clicked:', value);
-    const newAmount = value.toString();
-    setAmount(newAmount);
+    setAmount(value.toString());
     setError(null);
-    console.log('Amount set to:', newAmount);
   };
-  
-  /**
-   * Handle max button click
-   * Sets amount to entire USDC balance
-   */
+
   const handleMaxClick = () => {
-    if (usdcBalance > 0) {
-      setAmount(usdcBalance.toString());
+    if (solBalance > 0) {
+      // Leave a small amount for gas
+      const maxAmount = Math.max(0, solBalance - 0.005);
+      setAmount(maxAmount.toString());
       setError(null);
     }
   };
-  
-  /**
-   * Execute deposit transaction
-   * Requirements: 2.1, 2.2, 2.5, 14.2
-   */
+
   const handleDeposit = async () => {
-    // Validate amount (Requirement 2.1)
     const validationError = validateAmount(amount);
     if (validationError) {
       setError(validationError);
       return;
     }
-    
+
     if (!address) {
       setError('Please connect your wallet');
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const depositAmount = parseFloat(amount);
-      
-      // Show info toast that transaction is being processed
       toast.info('Please confirm the transaction in your wallet...');
-      
-      // Build deposit transaction (Requirement 2.2)
+
       const tx = await buildDepositTransaction(depositAmount, address);
-      
-      // Execute transaction using Sui wallet
-      // Note: signAndExecuteTransaction is a mutate function from React Query
-      // We need to wrap it in a Promise to await it properly
-      const result = await new Promise<any>((resolve, reject) => {
-        signAndExecuteTransaction(
-          {
-            transaction: tx,
-          },
-          {
-            onSuccess: (data: any) => {
-              console.log('Transaction submitted successfully:', data);
-              resolve(data);
-            },
-            onError: (error: any) => {
-              console.error('Transaction submission failed:', error);
-              reject(error);
-            },
-          }
-        );
-      });
-      
-      console.log('Deposit transaction successful:', result.digest);
-      
-      // Show info toast that transaction is being confirmed
+
+      // Execute transaction using Solana wallet
+      const signature = await sendTransaction(tx, connection);
+
       toast.info('Transaction submitted. Waiting for confirmation...');
-      
-      // Update balance in database (Requirement 2.4)
-      // Note: This will be triggered by event listener, but we call it here for immediate UI update
-      await depositFunds(address, depositAmount, result.digest);
-      
-      // Show success toast with updated balance
-      const newBalance = houseBalance + depositAmount;
+
+      // Wait for confirmation
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight
+      }, 'confirmed');
+
+      console.log('Deposit transaction successful:', signature);
+
+      // Update balance in database
+      await depositFunds(address, depositAmount, signature);
+
       toast.success(
-        `Successfully deposited ${depositAmount.toFixed(4)} USDC! New balance: ${newBalance.toFixed(4)} USDC`
+        `Successfully deposited ${depositAmount.toFixed(4)} SOL! Balance updated.`
       );
-      
-      // Call success callback
+
       if (onSuccess) {
-        onSuccess(depositAmount, result.digest);
+        onSuccess(depositAmount, signature);
       }
-      
-      // Close modal
+
       onClose();
     } catch (err) {
       console.error('Deposit error:', err);
-      
-      // The error is already formatted by handleTransactionError in client.ts
       let errorMessage = 'Failed to deposit funds';
-      
       if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
       setError(errorMessage);
-      
-      // Show error toast
       toast.error(errorMessage);
-      
       if (onError) {
         onError(errorMessage);
       }
@@ -220,27 +186,29 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       setIsLoading(false);
     }
   };
-  
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Deposit USDC"
+      title="Deposit SOL"
       showCloseButton={!isLoading}
     >
-      <div className="space-y-2">
-        {/* Wallet Balance Display */}
-        <div className="bg-gradient-to-br from-neon-blue/10 to-purple-500/10 border border-neon-blue/30 rounded-lg p-2.5">
-          <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5 font-mono">
+      <div className="space-y-4">
+        <div className="bg-gradient-to-br from-[#00f5ff]/10 to-purple-500/10 border border-[#00f5ff]/30 rounded-lg p-3 relative overflow-hidden">
+          <div className="absolute top-0 right-0 px-2 py-0.5 bg-[#00f5ff]/20 text-[#00f5ff] text-[8px] font-bold uppercase tracking-tighter rounded-bl-lg">
+            {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}
+          </div>
+          <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-1 font-mono">
             Wallet Balance
           </p>
-          <p className="text-neon-blue text-base font-bold font-mono">
-            {usdcBalance.toFixed(4)} USDC
+          <p className="text-[#00f5ff] text-xl font-bold font-mono">
+            {solBalance.toFixed(4)} SOL
           </p>
         </div>
-        
-        {/* Amount Input */}
-        <div>
+
+        <div className="space-y-2">
+          <label htmlFor="deposit-amount" className="text-gray-400 text-xs font-mono uppercase">Amount to Deposit</label>
           <div className="relative">
             <input
               id="deposit-amount"
@@ -250,42 +218,41 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               placeholder="0.00"
               disabled={isLoading}
               className={`
-                w-full px-3 py-2 bg-black/50 border rounded-lg text-sm
+                w-full px-4 py-3 bg-black/50 border rounded-lg text-lg
                 text-white font-mono
-                focus:outline-none focus:ring-1 focus:ring-neon-blue
+                focus:outline-none focus:ring-1 focus:ring-[#00f5ff]
                 disabled:opacity-50 disabled:cursor-not-allowed
-                ${error ? 'border-red-500' : 'border-neon-blue/30'}
+                ${error ? 'border-red-500' : 'border-[#00f5ff]/30'}
               `}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
-              USDC
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-mono">
+              SOL
             </span>
           </div>
-          
-          {/* Max Button */}
-          <button
-            onClick={handleMaxClick}
-            disabled={isLoading}
-            className="mt-1 text-[10px] text-neon-blue hover:text-cyan-400 font-mono disabled:opacity-50 transition-colors"
-          >
-            Use Max
-          </button>
+
+          <div className="flex justify-between items-center">
+            <button
+              onClick={handleMaxClick}
+              disabled={isLoading}
+              className="text-[10px] text-[#00f5ff] hover:text-cyan-400 font-mono disabled:opacity-50 transition-colors uppercase tracking-wider"
+            >
+              Use Max (minus gas)
+            </button>
+          </div>
         </div>
-        
-        {/* Quick Select Buttons */}
-        <div className="grid grid-cols-4 gap-1.5">
+
+        <div className="grid grid-cols-4 gap-2">
           {quickAmounts.map((quickAmount) => (
             <button
               key={quickAmount}
               onClick={() => handleQuickSelect(quickAmount)}
-              disabled={isLoading || usdcBalance < quickAmount}
+              disabled={isLoading}
               className={`
-                px-2 py-1 rounded border font-mono text-xs
+                px-2 py-2 rounded border font-mono text-xs
                 transition-all duration-200
-                ${
-                  amount === quickAmount.toString()
-                    ? 'bg-neon-blue/20 border-neon-blue text-neon-blue shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                    : 'bg-black/30 border-neon-blue/30 text-gray-300 hover:border-neon-blue hover:text-neon-blue'
+                ${amount === quickAmount.toString()
+                  ? 'bg-[#00f5ff]/20 border-[#00f5ff] text-[#00f5ff] shadow-[0_0_10px_rgba(0,245,255,0.3)]'
+                  : 'bg-black/30 border-[#00f5ff]/30 text-gray-300 hover:border-[#00f5ff] hover:text-[#00f5ff]'
                 }
                 disabled:opacity-50 disabled:cursor-not-allowed
               `}
@@ -294,66 +261,41 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             </button>
           ))}
         </div>
-        
-        {/* Error Message */}
+
         {error && (
-          <div className="bg-red-900/20 border border-red-500 rounded-lg px-2 py-1.5">
-            <p className="text-red-400 text-[10px] font-mono">{error}</p>
+          <div className="bg-red-900/20 border border-red-500 rounded-lg px-3 py-2">
+            <p className="text-red-400 text-xs font-mono">{error}</p>
           </div>
         )}
-        
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-1">
+
+        <div className="flex gap-3 pt-2">
           <Button
             onClick={onClose}
             variant="secondary"
-            size="sm"
+            className="flex-1"
             disabled={isLoading}
-            className="flex-1 !px-3 !py-1.5 !text-xs"
           >
             Cancel
           </Button>
           <Button
             onClick={handleDeposit}
             variant="primary"
-            size="sm"
+            className="flex-1"
             disabled={isLoading || !amount || parseFloat(amount || '0') <= 0}
-            className="flex-1 !px-3 !py-1.5 !text-xs"
           >
             {isLoading ? (
-              <span className="flex items-center justify-center gap-1">
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span className="text-[10px]">Processing...</span>
+                <span>Processing</span>
               </span>
             ) : (
-              'Deposit'
+              'Deposit SOL'
             )}
           </Button>
         </div>
-        
-        {/* Loading State Info */}
-        {isLoading && (
-          <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg px-2 py-1.5">
-            <p className="text-blue-400 text-[10px] font-mono">
-              Confirm transaction in wallet...
-            </p>
-          </div>
-        )}
       </div>
     </Modal>
   );

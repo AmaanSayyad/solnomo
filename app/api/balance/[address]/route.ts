@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
+import { PublicKey } from '@solana/web3.js';
 
 export async function GET(
   request: NextRequest,
@@ -20,10 +21,13 @@ export async function GET(
     // Await params in Next.js 15+
     const { address } = await params;
 
-    // Validate address format (Flow addresses start with 0x)
-    if (!address || !address.startsWith('0x')) {
+    // Validate Solana address
+    try {
+      if (!address) throw new Error('Address is required');
+      new PublicKey(address);
+    } catch (e) {
       return NextResponse.json(
-        { error: 'Invalid address format. Flow addresses must start with 0x' },
+        { error: 'Invalid Solana address format' },
         { status: 400 }
       );
     }

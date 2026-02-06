@@ -31,8 +31,8 @@ export const BetControls: React.FC<BetControlsProps> = ({
 
   // Calculate potential payout
   const potentialPayout = selectedTargetCell && betAmount
-    ? (parseFloat(betAmount) * selectedTargetCell.multiplier).toFixed(2)
-    : '0.00';
+    ? (parseFloat(betAmount) * selectedTargetCell.multiplier).toFixed(4)
+    : '0.0000';
 
   // Validate bet
   const validateBet = (): boolean => {
@@ -61,7 +61,7 @@ export const BetControls: React.FC<BetControlsProps> = ({
 
     // Check house balance instead of wallet balance
     if (amount > houseBalance) {
-      setError(`Insufficient house balance. You have ${houseBalance.toFixed(2)} USDC. Please deposit more.`);
+      setError(`Insufficient house balance. You have ${houseBalance.toFixed(4)} SOL. Please deposit more.`);
       return false;
     }
 
@@ -75,7 +75,7 @@ export const BetControls: React.FC<BetControlsProps> = ({
   };
 
   // Quick bet amount buttons
-  const quickAmounts = ['1', '5', '10', '25'];
+  const quickAmounts = ['0.1', '0.5', '1', '5'];
 
   return (
     <Card>
@@ -86,20 +86,20 @@ export const BetControls: React.FC<BetControlsProps> = ({
         {isConnected && (
           <div className="bg-gray-900 rounded p-3">
             <p className="text-gray-400 text-xs uppercase tracking-wider">House Balance</p>
-            <p className="text-white text-lg font-bold">{houseBalance.toFixed(2)} USDC</p>
+            <p className="text-white text-lg font-bold">{houseBalance.toFixed(4)} SOL</p>
           </div>
         )}
 
         {/* Bet Amount Input */}
         <div>
-          <label className="block text-gray-400 text-sm mb-2 font-mono uppercase tracking-wider">Bet Amount (USDC)</label>
+          <label className="block text-gray-400 text-sm mb-2 font-mono uppercase tracking-wider">Bet Amount (SOL)</label>
           <input
             type="number"
             value={betAmount}
             onChange={(e) => onBetAmountChange(e.target.value)}
             placeholder="0.00"
             min="0"
-            step="0.1"
+            step="0.01"
             disabled={!isConnected || !!activeRound}
             className="w-full bg-black/50 border border-white/10 rounded px-4 py-2 text-white font-mono focus:outline-none focus:border-neon-blue focus:shadow-[0_0_10px_rgba(0,240,255,0.3)] disabled:opacity-50 transition-all"
           />
@@ -134,7 +134,7 @@ export const BetControls: React.FC<BetControlsProps> = ({
         {selectedTarget && betAmount && parseFloat(betAmount) > 0 && (
           <div className="bg-neon-blue/10 border border-neon-blue/50 rounded p-3 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
             <p className="text-neon-blue text-xs uppercase tracking-wider mb-1 font-mono">Potential Win</p>
-            <p className="text-neon-blue text-2xl font-bold font-mono text-shadow-neon">{potentialPayout} USDC</p>
+            <p className="text-neon-blue text-2xl font-bold font-mono text-shadow-neon">{potentialPayout} SOL</p>
           </div>
         )}
 

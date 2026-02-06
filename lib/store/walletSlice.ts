@@ -1,9 +1,9 @@
 /**
  * Wallet state slice for Zustand store
- * Manages wallet connection, authentication, and balance
+ * Manages wallet connection status and address
  * 
  * Note: This slice is now primarily used for storing wallet state.
- * Actual wallet connection is handled by @mysten/dapp-kit in lib/sui/wallet.ts
+ * Actual wallet connection is handled by Solana Wallet Adapter in lib/solana/wallet.ts
  */
 
 import { StateCreator } from "zustand";
@@ -22,14 +22,14 @@ export interface WalletState {
   refreshBalance: () => Promise<void>;
   clearError: () => void;
 
-  // Setters for Sui wallet integration
+  // Setters for Solana wallet integration
   setAddress: (address: string | null) => void;
   setIsConnected: (connected: boolean) => void;
 }
 
 /**
  * Create wallet slice for Zustand store
- * Handles wallet state management for Sui integration
+ * Handles wallet state management for Solana integration
  */
 export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
   // Initial state
@@ -41,23 +41,19 @@ export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
 
   /**
    * Connect wallet
-   * Note: Actual connection is handled by @mysten/dapp-kit
-   * This is kept for compatibility with existing code
+   * Note: Actual connection is handled by Solana Wallet Adapter
    */
   connect: async () => {
-    // Connection is handled by useWalletConnection hook in lib/sui/wallet.ts
-    console.log('Connect called - handled by dapp-kit');
+    console.log('Connect called - handled by adapter');
   },
 
   /**
    * Disconnect wallet
-   * Note: Actual disconnection is handled by @mysten/dapp-kit
-   * This is kept for compatibility with existing code
+   * Note: Actual disconnection is handled by Solana Wallet Adapter
    */
   disconnect: () => {
-    // Disconnection is handled by useWalletConnection hook in lib/sui/wallet.ts
-    console.log('Disconnect called - handled by dapp-kit');
-    
+    console.log('Disconnect called - handled by adapter');
+
     // Reset state
     set({
       address: null,
@@ -69,8 +65,7 @@ export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
   },
 
   /**
-   * Refresh USDC token balance for connected wallet
-   * Note: Balance fetching is handled by getUSDCBalance in lib/sui/client.ts
+   * Refresh SOL token balance for connected wallet
    */
   refreshBalance: async () => {
     const { address, isConnected } = get();
@@ -80,7 +75,7 @@ export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
     }
 
     try {
-      // Balance is fetched by components using getUSDCBalance from lib/sui/client.ts
+      // Balance is fetched by components using getSOLBalance from lib/solana/client.ts
       console.log('Balance refresh - handled by components');
     } catch (error) {
       console.error("Error refreshing balance:", error);
@@ -98,14 +93,14 @@ export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
   },
 
   /**
-   * Set address (used by Sui wallet integration)
+   * Set address (used by Solana wallet integration)
    */
   setAddress: (address: string | null) => {
     set({ address });
   },
 
   /**
-   * Set connected status (used by Sui wallet integration)
+   * Set connected status (used by Solana wallet integration)
    */
   setIsConnected: (connected: boolean) => {
     set({ isConnected: connected });

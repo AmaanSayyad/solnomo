@@ -43,8 +43,7 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
       return;
     }
 
-    // Ensure address starts with 0x
-    const formattedAddress = address.startsWith('0x') ? address : `0x${address}`;
+    const formattedAddress = address;
 
     try {
       set({ isLoading: true, error: null });
@@ -89,8 +88,8 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    */
   updateBalance: (amount: number, operation: 'add' | 'subtract') => {
     const { houseBalance } = get();
-    const newBalance = operation === 'add' 
-      ? houseBalance + amount 
+    const newBalance = operation === 'add'
+      ? houseBalance + amount
       : Math.max(0, houseBalance - amount); // Prevent negative balance
 
     set({ houseBalance: newBalance });
@@ -104,8 +103,7 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * @param txHash - Transaction hash for audit trail
    */
   depositFunds: async (address: string, amount: number, txHash: string) => {
-    // Ensure address starts with 0x
-    const formattedAddress = address.startsWith('0x') ? address : `0x${address}`;
+    const formattedAddress = address;
 
     try {
       set({ isLoading: true, error: null });
@@ -152,8 +150,7 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * @param txHash - Transaction hash for audit trail
    */
   withdrawFunds: async (address: string, amount: number, txHash: string) => {
-    // Ensure address starts with 0x
-    const formattedAddress = address.startsWith('0x') ? address : `0x${address}`;
+    const formattedAddress = address;
 
     try {
       set({ isLoading: true, error: null });

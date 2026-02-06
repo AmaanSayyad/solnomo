@@ -4,14 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { LiveChart } from './LiveChart';
 import { BalanceDisplay } from '@/components/balance';
-import { getUSDCBalance } from '@/lib/sui/client';
+import { getSOLBalance } from '@/lib/solana/client';
 import { startPriceFeed } from '@/lib/store/gameSlice';
 
+import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+
 export const GameBoard: React.FC = () => {
-  const [betAmount, setBetAmount] = useState<string>('1.0');
+  const { connection } = useConnection();
+  const [betAmount, setBetAmount] = useState<string>('0.1');
   const [activeTab, setActiveTab] = useState<'bet' | 'wallet'>('bet');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [usdcBalance, setUsdcBalance] = useState<number>(0);
+  const [solBalance, setSolBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
   // Instant resolution system - no activeRound needed
@@ -24,40 +28,62 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     console.log(`Starting price feed for ${selectedAsset}`);
     const stopFeed = startPriceFeed(updatePrice, selectedAsset);
-    
+
     return () => {
       console.log(`Stopping price feed for ${selectedAsset}`);
       stopFeed();
     };
   }, [selectedAsset, updatePrice]);
 
-  // Fetch USDC balance when wallet connects or address changes
+  // Fetch SOL balance when wallet connects or address changes
   useEffect(() => {
+    let mounted = true;
+
     if (isConnected && address) {
       setIsLoadingBalance(true);
-      getUSDCBalance(address)
-        .then(balance => {
-          setUsdcBalance(balance);
-        })
-        .catch(error => {
-          console.error('Failed to fetch USDC balance:', error);
-          setUsdcBalance(0);
-        })
-        .finally(() => {
-          setIsLoadingBalance(false);
-        });
+
+      const fetchBalance = async () => {
+        try {
+          const publicKey = new PublicKey(address);
+          const balanceLamports = await connection.getBalance(publicKey, 'confirmed');
+          const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
+
+          if (mounted) {
+            setSolBalance(balanceSOL);
+          }
+        } catch (error) {
+          console.error('Failed to fetch SOL balance:', error);
+          // Fallback
+          try {
+            const bal = await getSOLBalance(address);
+            if (mounted) setSolBalance(bal);
+          } catch (innerErr) {
+            if (mounted) setSolBalance(0);
+          }
+        } finally {
+          if (mounted) {
+            setIsLoadingBalance(false);
+          }
+        }
+      };
+
+      fetchBalance();
     } else {
-      setUsdcBalance(0);
+      setSolBalance(0);
     }
-  }, [isConnected, address]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [isConnected, address, connection]);
 
   const formatAddress = (addr: string) => {
     if (!addr || addr.length <= 10) return addr || '---';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
   };
 
   const formatBalance = (bal: number) => {
-    return isNaN(bal) ? '0.00' : bal.toFixed(2);
+    return isNaN(bal) ? '0.0000' : bal.toFixed(4);
   };
 
   return (
@@ -131,7 +157,7 @@ export const GameBoard: React.FC = () => {
                     Quick Amount
                   </label>
                   <div className="grid grid-cols-5 gap-1.5">
-                    {[1, 5, 10, 25, 50].map(amt => (
+                    {[0.1, 0.5, 1, 5, 10].map(amt => (
                       <button
                         key={amt}
                         onClick={() => setBetAmount(amt.toString())}
@@ -163,7 +189,7 @@ export const GameBoard: React.FC = () => {
                       placeholder="0.00"
                     />
                     <span className="px-2 py-1.5 bg-purple-500/20 rounded-lg text-purple-400 text-[10px] font-bold shrink-0">
-                      USDC
+                      SOL
                     </span>
                   </div>
                 </div>
@@ -186,9 +212,9 @@ export const GameBoard: React.FC = () => {
                       <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-1">Wallet Balance</p>
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-bold text-white">
-                          {isLoadingBalance ? 'Loading...' : formatBalance(usdcBalance)}
+                          {isLoadingBalance ? 'Loading...' : formatBalance(solBalance)}
                         </span>
-                        <span className="text-purple-400 text-sm font-medium">USDC</span>
+                        <span className="text-purple-400 text-sm font-medium">SOL</span>
                       </div>
                     </div>
 

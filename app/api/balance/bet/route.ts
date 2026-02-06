@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
+import { PublicKey } from '@solana/web3.js';
 
 interface BetRequest {
   userAddress: string;
@@ -42,10 +43,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate address format (Sui addresses start with 0x)
-    if (!userAddress.startsWith('0x')) {
+    // Validate Solana address
+    try {
+      new PublicKey(userAddress);
+    } catch (e) {
       return NextResponse.json(
-        { error: 'Invalid address format. Sui addresses must start with 0x' },
+        { error: 'Invalid Solana address format' },
         { status: 400 }
       );
     }
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
       // Return specific error message for insufficient balance
       if (result.error === 'Insufficient balance') {
         return NextResponse.json(
-          { error: 'Insufficient house balance. Please deposit more USDC.' },
+          { error: 'Insufficient house balance. Please deposit more SOL.' },
           { status: 400 }
         );
       }

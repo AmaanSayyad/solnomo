@@ -227,7 +227,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
       SUI: 0.015,  // 1.5% - Sui is moderately volatile
       SOL: 0.015   // 1.5% - Solana is moderately volatile
     };
-    
+
     const rangePercent = rangePercentages[selectedAsset];
     const targetMin = referencePrice * (1 - rangePercent);
     const targetMax = referencePrice * (1 + rangePercent);
@@ -269,7 +269,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     if (visiblePoints.length < 2) return '';
 
     const pointsToRender = [...visiblePoints];
-    
+
     // Only add current live point if we have history and valid price
     // This prevents drawing a line from old asset price to new asset price
     if (priceHistory.length >= 2 && currentPrice > 0) {
@@ -655,7 +655,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
       </div>
 
       {/* SVG Layer for Chart - ON TOP */}
-      <svg 
+      <svg
         key={`chart-${selectedAsset}`}
         className="absolute inset-0 w-full h-full z-10 pointer-events-none"
       >
@@ -735,9 +735,9 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
             {currentAssetConfig.pair}
           </h2>
           <p className="text-white text-2xl sm:text-4xl font-black font-mono tracking-tight">
-            ${currentPrice > 0 ? currentPrice.toLocaleString('en-US', { 
-              minimumFractionDigits: currentAssetConfig.decimals, 
-              maximumFractionDigits: currentAssetConfig.decimals 
+            ${currentPrice > 0 ? currentPrice.toLocaleString('en-US', {
+              minimumFractionDigits: currentAssetConfig.decimals,
+              maximumFractionDigits: currentAssetConfig.decimals
             }) : '---'}
           </p>
           <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-500/20 border border-purple-400/30 rounded text-[8px] sm:text-[9px] text-purple-300 font-medium">
@@ -806,10 +806,10 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
                     </p>
                     <p className={`text-lg font-bold ${result.won ? 'text-green-100' : 'text-red-100'}`}>
                       {result.won
-                        ? `+${result.payout.toFixed(2)}`
-                        : `-${result.amount.toFixed(2)}`
+                        ? `+${result.payout.toFixed(4)}`
+                        : `-${result.amount.toFixed(4)}`
                       }
-                      <span className="text-xs ml-1 opacity-70">USDC</span>
+                      <span className="text-xs ml-1 opacity-70">SOL</span>
                     </p>
                   </div>
 

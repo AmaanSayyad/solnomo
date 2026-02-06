@@ -12,7 +12,7 @@ interface BetCardProps {
 export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) => {
   const isSettled = bet.endPrice > 0;
   const isActive = !isSettled;
-  
+
   // Format timestamp
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -23,7 +23,7 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
       minute: '2-digit'
     });
   };
-  
+
   return (
     <div
       className={`
@@ -52,19 +52,19 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
           `}>
             {isSettled ? (bet.won ? '✓' : '✗') : '⏱'}
           </div>
-          
+
           {/* Bet Info */}
           <div>
             <p className="text-white font-semibold">{bet.target.label}</p>
             <p className="text-gray-400 text-xs">{formatDate(bet.timestamp)}</p>
           </div>
         </div>
-        
+
         <div className="text-right">
-          <p className="text-white font-bold">{bet.amount} USDC</p>
+          <p className="text-white font-bold">{parseFloat(bet.amount).toFixed(4)} SOL</p>
           {isSettled && (
             <p className={`text-sm font-semibold ${bet.won ? 'text-green-400' : 'text-red-400'}`}>
-              {bet.won ? `+${bet.payout}` : `-${bet.amount}`} USDC
+              {bet.won ? `+${parseFloat(bet.payout).toFixed(4)}` : `-${parseFloat(bet.amount).toFixed(4)}`} SOL
             </p>
           )}
           {isActive && (
@@ -72,7 +72,7 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
           )}
         </div>
       </div>
-      
+
       {/* Expanded Details */}
       {isExpanded && (
         <div className="border-t border-gray-700 p-3 space-y-2">
@@ -81,24 +81,24 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
               <p className="text-gray-400 text-xs uppercase tracking-wider">Bet ID</p>
               <p className="text-white text-sm font-mono">#{bet.id}</p>
             </div>
-            
+
             <div>
               <p className="text-gray-400 text-xs uppercase tracking-wider">Multiplier</p>
               <p className="text-white text-sm font-bold">x{bet.target.multiplier}</p>
             </div>
-            
+
             <div>
               <p className="text-gray-400 text-xs uppercase tracking-wider">Start Price</p>
               <p className="text-white text-sm">${bet.startPrice.toLocaleString()}</p>
             </div>
-            
+
             {isSettled && (
               <div>
                 <p className="text-gray-400 text-xs uppercase tracking-wider">End Price</p>
                 <p className="text-white text-sm">${bet.endPrice.toLocaleString()}</p>
               </div>
             )}
-            
+
             {isSettled && (
               <div>
                 <p className="text-gray-400 text-xs uppercase tracking-wider">Actual Change</p>
@@ -107,7 +107,7 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
                 </p>
               </div>
             )}
-            
+
             {isSettled && (
               <div>
                 <p className="text-gray-400 text-xs uppercase tracking-wider">Target</p>
@@ -117,15 +117,15 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
               </div>
             )}
           </div>
-          
+
           {isSettled && (
             <div className={`
               mt-3 p-2 rounded text-center font-semibold
               ${bet.won ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}
             `}>
-              {bet.won 
-                ? `Won ${bet.payout} USDC (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
-                : `Lost ${bet.amount} USDC`
+              {bet.won
+                ? `Won ${parseFloat(bet.payout).toFixed(4)} SOL (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
+                : `Lost ${parseFloat(bet.amount).toFixed(4)} SOL`
               }
             </div>
           )}

@@ -29,7 +29,7 @@ export const BalanceDisplay: React.FC = () => {
   const address = useOverflowStore(state => state.address);
   const fetchBalance = useOverflowStore(state => state.fetchBalance);
   const toast = useToast();
-  
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
@@ -40,7 +40,7 @@ export const BalanceDisplay: React.FC = () => {
    */
   const handleRefresh = async () => {
     if (!address || isLoading) return;
-    
+
     setIsRefreshing(true);
     try {
       await fetchBalance(address);
@@ -101,7 +101,7 @@ export const BalanceDisplay: React.FC = () => {
             <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
               House Balance
             </h3>
-            
+
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
@@ -130,7 +130,7 @@ export const BalanceDisplay: React.FC = () => {
             <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5 font-mono">
               Available Balance
             </p>
-            
+
             {isLoading ? (
               <div className="flex items-center gap-1.5">
                 <div className="animate-pulse bg-white/20 h-6 w-24 rounded" />
@@ -141,7 +141,7 @@ export const BalanceDisplay: React.FC = () => {
                 <p className="text-neon-blue text-xl font-bold font-mono text-shadow-neon">
                   {formattedBalance}
                 </p>
-                <span className="text-neon-blue/70 text-sm font-mono">USDC</span>
+                <span className="text-neon-blue/70 text-sm font-mono">SOL</span>
               </div>
             )}
           </div>
@@ -157,7 +157,7 @@ export const BalanceDisplay: React.FC = () => {
             >
               Deposit
             </Button>
-            
+
             <Button
               onClick={handleWithdraw}
               disabled={!address || isLoading || houseBalance <= 0}
