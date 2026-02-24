@@ -11,19 +11,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import { PublicKey } from '@solana/web3.js';
+import { ethers } from 'ethers';
 
 interface DepositRequest {
   userAddress: string;
   amount: number;
   txHash: string;
+  currency: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body: DepositRequest = await request.json();
-    const { userAddress, amount, txHash } = body;
+    const { userAddress, amount, txHash, currency = 'BNB' } = body;
 
     // Validate required fields
     if (!userAddress || amount === undefined || amount === null || !txHash) {
@@ -33,12 +34,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate Solana address
-    try {
-      new PublicKey(userAddress);
-    } catch (e) {
+    // Validate address (Solana EVM only)
+    let isValid = false;
+
+    // Check if it's a valid EVM address
+    if (ethers.isAddress(userAddress)) {
+      isValid = true;
+    } else if (/^0x[0-9a-fA-F]{64}$/.test(userAddress)) {
+      // Check if it's a valid Sui address
+      isValid = true;
+    } else if (/^(tz1|tz2|tz3|KT1)[a-zA-Z0-9]{33}$/.test(userAddress)) {
+      // Check if it's a valid Tezos address
+      isValid = true;
+    } else {
+      // Check if it's a valid EVM address (Solana)
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const pk = new PublicKey(userAddress);
+        isValid = pk.toBuffer().length === 32;
+      } catch (e) {
+        // Check if it's a valid Stellar address (starts with G, 56 characters)
+        if (/^G[A-Z2-7]{55}$/.test(userAddress)) {
+          isValid = true;
+        } else if (/^[0-9a-fA-F]{64}$/.test(userAddress) || /^(([a-z\d]+[-_])*[a-z\d]+\.)+[a-z\d]+$/.test(userAddress)) {
+          // Check if it's a valid NEAR address (implicit 64-char hex OR named account ending in .near/.testnet)
+          isValid = true;
+        } else {
+          isValid = false;
+        }
+      }
+    }
+
+    if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid Solana address format' },
+        { error: 'Invalid wallet address format. Solana (EVM) address required.' },
         { status: 400 }
       );
     }
@@ -52,13 +81,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Call update_balance_for_deposit stored procedure
-    // This procedure handles:
-    // - Atomic balance update with row-level locking
-    // - Creating user record if it doesn't exist
-    // - Inserting audit log entry with operation_type='deposit'
     const { data, error } = await supabase.rpc('update_balance_for_deposit', {
       p_user_address: userAddress,
       p_deposit_amount: amount,
+      p_currency: currency,
       p_transaction_hash: txHash,
     });
 

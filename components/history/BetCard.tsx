@@ -61,10 +61,10 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
         </div>
 
         <div className="text-right">
-          <p className="text-white font-bold">{parseFloat(bet.amount).toFixed(4)} SOL</p>
+          <p className="text-white font-bold">{parseFloat(bet.amount).toFixed(4)} {bet.network === 'SOL' ? 'SOL' : (bet.network || 'BNB')}</p>
           {isSettled && (
             <p className={`text-sm font-semibold ${bet.won ? 'text-green-400' : 'text-red-400'}`}>
-              {bet.won ? `+${parseFloat(bet.payout).toFixed(4)}` : `-${parseFloat(bet.amount).toFixed(4)}`} SOL
+              {bet.won ? `+${parseFloat(bet.payout).toFixed(4)}` : `-${parseFloat(bet.amount).toFixed(4)}`} {bet.network === 'SOL' ? 'SOL' : (bet.network || 'BNB')}
             </p>
           )}
           {isActive && (
@@ -103,7 +103,7 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
               <div>
                 <p className="text-gray-400 text-xs uppercase tracking-wider">Actual Change</p>
                 <p className={`text-sm font-bold ${bet.actualChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {bet.actualChange >= 0 ? '+' : ''}{bet.actualChange.toFixed(2)}
+                  {bet.actualChange >= 0 ? '+' : ''}{bet.actualChange.toFixed(4)}
                 </p>
               </div>
             )}
@@ -124,8 +124,8 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
               ${bet.won ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}
             `}>
               {bet.won
-                ? `Won ${parseFloat(bet.payout).toFixed(4)} SOL (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
-                : `Lost ${parseFloat(bet.amount).toFixed(4)} SOL`
+                ? `Won ${parseFloat(bet.payout).toFixed(4)} BNB (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
+                : `Lost ${parseFloat(bet.amount).toFixed(4)} BNB`
               }
             </div>
           )}

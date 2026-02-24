@@ -12,11 +12,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import { PublicKey } from '@solana/web3.js';
 
 interface BetRequest {
   userAddress: string;
   betAmount: number;
+  currency: string;
   roundId: number;
   targetPrice: number;
   isOver: boolean;
@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body: BetRequest = await request.json();
-    const { userAddress, betAmount, roundId, targetPrice, isOver, multiplier, targetCell } = body;
+    let { userAddress, betAmount, currency = 'BNB', roundId, targetPrice, isOver, multiplier, targetCell } = body;
+
+    // Normalize SOL requests to ETH for database compatibility
+    const displayCurrency = currency;
+    if (currency === 'SOL') {
+      currency = 'ETH';
+    }
 
     // Validate required fields
     if (!userAddress || betAmount === undefined || betAmount === null) {
@@ -43,12 +49,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate Solana address
-    try {
-      new PublicKey(userAddress);
-    } catch (e) {
+    // Validate address using utility
+    const { isValidAddress } = await import('@/lib/utils/address');
+    if (!(await isValidAddress(userAddress))) {
       return NextResponse.json(
-        { error: 'Invalid Solana address format' },
+        { error: 'Invalid wallet address format' },
         { status: 400 }
       );
     }
@@ -86,6 +91,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.rpc('deduct_balance_for_bet', {
       p_user_address: userAddress,
       p_bet_amount: betAmount,
+      p_currency: currency,
     });
 
     // Handle database errors
@@ -104,8 +110,9 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       // Return specific error message for insufficient balance
       if (result.error === 'Insufficient balance') {
+        const readableCurrency = (currency === 'ETH') ? 'SOL' : currency;
         return NextResponse.json(
-          { error: 'Insufficient house balance. Please deposit more SOL.' },
+          { error: `Insufficient house balance. Please deposit more ${readableCurrency}.` },
           { status: 400 }
         );
       }

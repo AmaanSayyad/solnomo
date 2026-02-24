@@ -1,242 +1,259 @@
-# SOLNOMO - Solana BTC Price Prediction Game
+# Arbnomo
 
-SOLNOMO is a decentralized real-time BTC price prediction game built on the Solana Blockchain. Users deposit SOL tokens to their house balance and place bets on Bitcoin price movements within 30-second rounds. The system combines secure on-chain treasury management with ultra-fast off-chain game logic for an optimal performance and user experience.
+**The first on-chain binary options trading dApp on Arbitrum Sepolia.**  
+Running on **Arbitrum Sepolia**.
 
-## Core Features
+Powered by **Arbitrum Sepolia** + **Pyth Hermes** price attestations + **Supabase** + instant house balance.
 
-- Real-time BTC price prediction with 30-second rounds
-- SOL-based betting system on Solana Devnet/Testnet
-- Secure treasury wallet system for deposit/withdrawal operations
-- Off-chain game logic for instant bet placement and settlement
-- Live price chart with historical data visualization (BTC/USD)
-- Multiple betting targets with configurable multipliers (up to 10x)
-- Comprehensive audit logging for all balance operations
-- Real-time balance synchronization between blockchain transactions and database
+*Trade binary options with oracle-bound resolution and minimal trust.*
+
+**Treasury (Arbitrum Sepolia):** [`0x83CC763c3D80906B62e79c0b5D9Ab87C3D4D1646`](https://sepolia.arbiscan.io/address/0x83CC763c3D80906B62e79c0b5D9Ab87C3D4D1646)
+
+---
+
+## Why Arbnomo?
+
+Binary options trading in Web3 is rare. Real-time oracles and sub-second resolution have been the missing piece.
+
+- **Pyth Hermes** delivers millisecond-grade prices for 300+ assets (crypto, stocks, metals, forex).
+- **Arbitrum Sepolia** — low fees and fast finality for deposits and withdrawals.
+- **House balance** — place unlimited bets without signing a transaction every time; only deposit/withdraw hit the chain.
+- **5s, 10s, 15s, 30s, 1m** rounds with oracle-bound settlement.
+
+Arbnomo brings binary options to Arbitrum Sepolia with transparent, on-chain settlement.
+
+---
+
+## Tech Stack
+
+| Layer        | Technology |
+|-------------|------------|
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Recharts |
+| **Blockchain** | **Arbitrum Sepolia**, ethers.js, viem, Wagmi, ConnectKit, Privy |
+| **Oracle** | Pyth Network Hermes (real-time prices) |
+| **Backend** | Next.js API Routes, Supabase (PostgreSQL) |
+| **Payments** | ETH native transfers on Arbitrum Sepolia, single treasury |
+
+---
+
+## Market Opportunity
+
+| Metric | Value |
+|--------|--------|
+| **Binary options / prediction (TAM)** | $27.56B (2025) → ~$116B by 2034 (19.8% CAGR) |
+| **Crypto prediction markets** | $45B+ annual volume (Polymarket, Kalshi, on-chain) |
+| **Crypto derivatives volume** | $86T+ annually (2025) |
+| **Crypto users** | 590M+ worldwide |
+
+---
+
+## Competitive Landscape
+
+| Segment | Examples | Limitation vs Arbnomo |
+|--------|----------|----------------------|
+| **Web2 binary options** | IQ Option, Quotex | Opaque pricing, regulatory issues, no on-chain settlement; users do not custody funds. |
+| **Crypto prediction markets** | Polymarket, Kalshi, Azuro | Event/outcome markets (e.g. "Will X happen?"), not sub-minute **price** binary options; resolution in hours or days. |
+| **Crypto derivatives (CEX)** | Binance Futures, Bybit, OKX | Leveraged perps and positions; not short-duration binary options (5s–1m) with oracle-bound resolution. |
+| **On-chain options / DeFi** | Dopex, Lyra, Premia | Standard options (calls/puts), complex UX; no simple "price up/down in 30s" binary product. |
+| **Arbitrum Sepolia binary options** | — | No established on-chain binary options dApp; Arbnomo fills this gap. |
+
+**Arbnomo's differentiation:** On-chain binary options on Arbitrum Sepolia with sub-second oracle resolution (Pyth Hermes), house balance for instant bets, and dual modes (Classic + Box) in one treasury.
+
+---
+
+## Future
+
+Endless possibilities across:
+
+- **Stocks, Forex** — Expand beyond crypto into traditional markets via oracles.
+- **Options** — Standard options (calls/puts) on top of the same infrastructure.
+- **Derivatives & Futures** — More products for advanced traders.
+- **DEX** — Deeper DeFi integration and on-chain liquidity.
+
+**Ultimate objective:** To become the go-to on-chain venue for short-duration, oracle-settled binary options on Arbitrum and beyond.
+
+---
+
+## How It Works
+
+```mermaid
+flowchart LR
+    subgraph User
+        A[Connect Wallet] --> B[Deposit ETH]
+        B --> C[Place Bets]
+        C --> D[Win/Lose]
+        D --> E[Withdraw]
+    end
+    subgraph Arbnomo
+        F[MetaMask / ConnectKit / Privy]
+        G[Pyth Hermes Prices]
+        H[Supabase Balances]
+        I[Arbitrum Sepolia Treasury]
+    end
+    A --> F
+    B --> I
+    C --> G
+    C --> H
+    D --> H
+    E --> I
+```
+
+### Flow
+
+1. **Connect** — Connect via MetaMask (ConnectKit/Wagmi) or Privy (social login). All operations use **ETH** on Arbitrum Sepolia.
+2. **Deposit** — Send ETH from your wallet to the Arbnomo treasury. Your house balance is credited instantly.
+3. **Place bet** — Choose **Classic** (up/down + expiry) or **Box** (tap tiles with multipliers). No on-chain tx per bet.
+4. **Resolution** — Pyth Hermes provides the price at expiry; win/loss is applied to your house balance.
+5. **Withdraw** — Request withdrawal; ETH is sent from the treasury to your wallet on Arbitrum Sepolia.
+
+---
 
 ## System Architecture
 
-The application follows a hybrid architecture combining on-chain treasury operations with off-chain game logic. This design optimizes for security (deposits/withdrawals on-chain) and performance (game logic off-chain).
-
-### High-Level Architecture
-
 ```mermaid
 graph TB
-    subgraph "Client Layer"
-        UI[React Components]
-        Store[Zustand State]
-        Hooks[Custom Hooks]
+    subgraph Client
+        UI["Next.js + React UI"]
+        Store["Zustand Store"]
+        Wallets["Wagmi / ConnectKit / Privy"]
     end
-    
-    subgraph "Wallet Integration"
-        SolanaAdapter[@solana/wallet-adapter-react]
-        WalletAdapters[Phantom/Solflare Adapters]
+
+    subgraph Oracle
+        Pyth["Pyth Hermes Price Feeds"]
     end
-    
-    subgraph "Blockchain Layer"
-        SolanaSDK[@solana/web3.js]
-        Treasury[Treasury Wallet]
-        SOL[SOL Native Token]
-        Transactions[Solana Transactions]
+
+    subgraph ArbitrumSepolia["Arbitrum Sepolia"]
+        UserWallet["User Wallet MetaMask or Privy"]
+        Treasury["Arbnomo Treasury ETH EOA"]
+        ArbRPC["Arbitrum RPC"]
     end
-    
-    subgraph "API Layer"
-        BalanceAPI[Balance API]
-        GameAPI[Game API]
-        Verification[Transaction Verification]
+
+    subgraph Backend
+        API["Next.js API Routes"]
+        DB["Supabase PostgreSQL"]
     end
-    
-    subgraph "Data Layer"
-        Supabase[(Supabase PostgreSQL)]
-        PriceAPI[Price Feed API / Pyth]
-    end
-    
+
     UI --> Store
-    UI --> Hooks
-    Hooks --> SolanaAdapter
-    SolanaAdapter --> WalletAdapters
-    SolanaAdapter --> SolanaSDK
-    
-    SolanaSDK --> Treasury
-    Treasury --> SOL
-    Treasury --> Transactions
-    
-    Store --> BalanceAPI
-    Store --> GameAPI
-    
-    BalanceAPI --> Supabase
-    GameAPI --> Supabase
-    GameAPI --> PriceAPI
-    
-    Verification --> Transactions
-    Verification --> Supabase
+    UI --> Wallets
+    Wallets --> UserWallet
+    UserWallet --> ArbRPC
+    ArbRPC --> Treasury
+    UI --> Pyth
+    UI --> API
+    API --> DB
+    API --> Treasury
 ```
 
-### Component Architecture
+### Data Flow
 
 ```mermaid
-graph LR
-    subgraph "UI Components"
-        WalletConnect[WalletConnect]
-        BalanceDisplay[BalanceDisplay]
-        DepositModal[DepositModal]
-        WithdrawModal[WithdrawModal]
-        GameBoard[GameBoard]
-        BetControls[BetControls]
-        BetHistory[BetHistory]
+sequenceDiagram
+    participant U as User
+    participant App as Arbnomo App
+    participant P as Pyth Hermes
+    participant API as API + Supabase
+    participant Arb as Arbitrum Sepolia Treasury
+
+    U->>App: Connect wallet MetaMask or Privy
+    U->>App: Deposit ETH
+    App->>Arb: Transfer ETH to treasury
+    Arb-->>App: Tx confirmed
+    App->>API: Credit house balance
+
+    loop Betting
+        P->>App: Live price stream
+        U->>App: Place bet Classic or Box
+        App->>API: Record bet in Supabase
+        Note over App,API: No on-chain tx per bet, house balance only
+        P->>App: Price at expiry
+        App->>API: Settle win or loss, update house balance
     end
-    
-    subgraph "State Management"
-        WalletSlice[walletSlice]
-        BalanceSlice[balanceSlice]
-        GameSlice[gameSlice]
-        HistorySlice[historySlice]
-    end
-    
-    subgraph "Integration Layer"
-        SolanaClient[Solana Client]
-        SolanaWallet[Solana Wallet Adapter]
-    end
-    
-    WalletConnect --> WalletSlice
-    BalanceDisplay --> BalanceSlice
-    DepositModal --> BalanceSlice
-    WithdrawModal --> BalanceSlice
-    GameBoard --> GameSlice
-    BetControls --> GameSlice
-    BetHistory --> HistorySlice
-    
-    WalletSlice --> SolanaWallet
-    BalanceSlice --> SolanaClient
-    GameSlice --> SolanaClient
+
+    U->>App: Request withdrawal
+    App->>API: Debit balance, create payout
+    API->>Arb: Sign and send ETH from treasury to user
+    Arb-->>U: ETH received in wallet
 ```
 
-## Technical Stack
+### Game Modes
 
-### Frontend
-- **Next.js 14**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first CSS framework
-- **Zustand**: Lightweight state management
-- **Recharts**: Price visualization
-- **@solana/wallet-adapter-react**: Official Solana wallet integration
+```mermaid
+flowchart TD
+    Start[Select Mode] --> Classic[Classic Mode]
+    Start --> Box[Box Mode]
 
-### Blockchain
-- **Solana Blockchain**: High-performance Layer 1 blockchain
-- **@solana/web3.js**: TypeScript SDK for Solana interactions
-- **SOL**: Native currency for deposits and betting
-- **Pyth Network**: Real-time price oracle integration
+    Classic --> C1[Choose UP or DOWN]
+    C1 --> C2[Pick expiry 5s to 1m]
+    C2 --> C3[Enter stake in ETH]
+    C3 --> C4[Price at expiry vs entry - Oracle settlement]
 
-### Backend
-- **Next.js API Routes**: Serverless API endpoints for game logic
-- **Supabase**: PostgreSQL database with real-time subscriptions
-- **Solana Connection**: Direct RPC interaction for balance checks and transaction confirmation
+    Box --> B1[Tap a tile on the chart]
+    B1 --> B2[Each tile is multiplier up to 10x]
+    B2 --> B3[Price touches tile before expiry equals WIN]
+```
 
-## Prerequisites
-
-- Node.js 18+ and npm
-- A Solana wallet (Phantom, Solflare, etc.) for testing
-- Solana Devnet/Testnet SOL tokens (get from [Solana Faucet](https://faucet.solana.com/))
+---
 
 ## Getting Started
 
-### 1. Install Dependencies
+### Prerequisites
+
+- Node.js 18+
+- Yarn (or npm)
+- An Arbitrum Sepolia wallet (e.g. MetaMask) and some ETH on Arbitrum Sepolia (e.g. from a faucet)
+- Supabase project
+
+### 1. Clone and install
 
 ```bash
-npm install
+git clone https://github.com/AmaanSayyad/Arbnomo.git
+cd Arbnomo
+yarn install
 ```
 
-### 2. Set Up Environment Variables
-
-Copy the example environment file and configure it:
+### 2. Environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-**Required Environment Variables:**
-- `NEXT_PUBLIC_SOLANA_NETWORK`: Network (devnet, testnet, mainnet-beta)
-- `NEXT_PUBLIC_SOLANA_RPC_ENDPOINT`: Solana RPC URL
-- `NEXT_PUBLIC_TREASURY_ADDRESS`: Solana Public Key of the treasury wallet
-- `SOLANA_TREASURY_SECRET_KEY`: Private Key (Base58 or JSON) for withdrawal processing
-- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+Edit `.env` with:
 
-### 3. Set Up Supabase Database
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect project ID ([cloud.walletconnect.com](https://cloud.walletconnect.com)) |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | Privy app ID (optional, for social login) |
+| `PRIVY_APP_SECRET` | Privy app secret (backend only; keep secret) |
+| `NEXT_PUBLIC_APP_NAME` | App name shown in the UI (default: `Arbnomo`) |
+| `NEXT_PUBLIC_ROUND_DURATION` | Default round duration in seconds (e.g. `30`) |
+| `NEXT_PUBLIC_PRICE_UPDATE_INTERVAL` | Price refresh interval in ms (e.g. `1000`) |
+| `NEXT_PUBLIC_CHART_TIME_WINDOW` | Chart time window in ms (e.g. `300000`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `NEXT_PUBLIC_ARB_NETWORK` | `arbitrumSepolia` |
+| `NEXT_PUBLIC_ARB_RPC_ENDPOINT` | Arbitrum Sepolia RPC URL |
+| `NEXT_PUBLIC_ARB_TREASURY_ADDRESS` | Treasury address for deposits/withdrawals |
+| `ARB_TREASURY_SECRET_KEY` | Treasury private key (withdrawals; backend only; keep secret) |
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. Run the SQL migrations found in `supabase/migrations/` in the Supabase SQL Editor.
+### 3. Supabase
 
-### 4. Start the Development Server
+1. Create a project at [supabase.com](https://supabase.com).
+2. Run the SQL migrations in `supabase/migrations/` in the Supabase SQL Editor.
+
+### 4. Run the app
 
 ```bash
-npm run dev
+yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000); the app redirects to `/trade`.
 
-## Database Schema
+---
 
-### Table Definitions
+## Arbitrum Sepolia
 
-#### user_balances
-Stores the current house balance for each user address.
+Arbnomo is built for **Arbitrum Sepolia**:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| user_address | TEXT | Solana wallet address (Base58) |
-| balance | NUMERIC(20,8) | Current SOL balance |
-| updated_at | TIMESTAMP | Last update timestamp |
-
-#### balance_audit_log
-Audit trail for all balance operations.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | BIGSERIAL | Auto-incrementing ID |
-| user_address | TEXT | Solana wallet address |
-| operation_type | TEXT | deposit, withdrawal, bet_placed, bet_won |
-| amount | NUMERIC(20,8) | Operation amount |
-| transaction_hash | TEXT | Solana transaction signature |
-
-## Game Mechanics
-
-### Betting Targets
-Multiple targets with multipliers based on price movement:
-
-| Target | Price Movement | Multiplier |
-|--------|---------------|------------|
-| Target 1 | +0.1% to +0.3% | 2.5x |
-| Target 2 | +0.3% to +0.5% | 5.0x |
-| Target 3 | +0.5% to +1.0% | 10.0x |
-| ... | Downward targets | ... |
-
-### House Balance System
-The house balance system enables fast bet placement without blockchain transactions:
-
-1. User deposits SOL to treasury (on-chain transaction)
-2. UI confirms transaction and updates house balance (off-chain)
-3. User places bets instantly using house balance (off-chain)
-4. Winnings credited instantly to house balance (off-chain)
-5. User withdraws SOL to wallet (on-chain via treasury)
-
-## Troubleshooting
-
-### Wallet Connection Issues
-- Ensure wallet is on the same network as the app (Devnet/Testnet).
-- Check that you have SOL for gas fees.
-- Refresh the page to re-initialize the Solana provider.
-
-### Balance Mismatch
-- Transactions on Solana may take a few seconds to reach 'confirmed' status.
-- Verify the transaction signature on [Solana Explorer](https://explorer.solana.com/?cluster=devnet).
-
-## License
-
-MIT License
-
-## Resources
-
-- [Solana Documentation](https://docs.solana.com/)
-- [Solana Web3.js SDK](https://solana-labs.github.io/solana-web3.js/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
+- **ETH only** — Deposits and withdrawals are native ETH transfers. House balance is tracked in ETH.
+- **Treasury** — An EOA on Arbitrum Sepolia; no custom contract required for core flow.
+- **Wallets** — Connect via ConnectKit (MetaMask, Rabby, etc.) or Privy.

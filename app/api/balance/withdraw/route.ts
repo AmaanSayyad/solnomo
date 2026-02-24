@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import { Connection, Keypair, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import bs58 from 'bs58';
 
 interface WithdrawRequest {
   userAddress: string;
   amount: number;
+  currency: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: WithdrawRequest = await request.json();
-    const { userAddress, amount } = body;
+    const { userAddress, amount, currency = 'SOL' } = body;
 
     // Validate required fields
     if (!userAddress || amount === undefined || amount === null) {
@@ -21,15 +20,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate Solana address
-    try {
-      new PublicKey(userAddress);
-    } catch (e) {
+    // Validate address using utility
+    const { isValidAddress } = await import('@/lib/utils/address');
+    if (!(await isValidAddress(userAddress))) {
       return NextResponse.json(
-        { error: 'Invalid Solana address format' },
+        { error: 'Invalid wallet address format' },
         { status: 400 }
       );
     }
+
+    // Ensure address is supported for withdrawals
+    // (Validation already occurred above so we can proceed)
 
     if (amount <= 0) {
       return NextResponse.json(
@@ -38,72 +39,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Get house balance from Supabase and validate
-    const { data: userData, error: userError } = await supabase
+    // 1. Get house balance and status from Supabase and validate
+    // For Solana, support both 'SOL' and 'ETH' (native asset is ETH)
+    let resolvedCurrency = currency;
+    let result = await supabase
       .from('user_balances')
-      .select('balance')
+      .select('balance, status')
       .eq('user_address', userAddress)
+      .eq('currency', currency)
       .single();
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User balance record not found' }, { status: 404 });
-    }
+    let userData = result.data;
+    let userError = result.error;
 
-    if (userData.balance < amount) {
-      return NextResponse.json({ error: 'Insufficient house balance' }, { status: 400 });
-    }
-
-    // 2. Perform Solana transfer from treasury
-    const rpcEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || 'https://api.testnet.solana.com';
-    const connection = new Connection(rpcEndpoint, 'confirmed');
-
-    const secretKeyStr = process.env.SOLANA_TREASURY_SECRET_KEY;
-    if (!secretKeyStr) {
-      console.error('SOLANA_TREASURY_SECRET_KEY is not configured');
-      return NextResponse.json({ error: 'Server configuration error: Treasury key missing' }, { status: 500 });
-    }
-
-    let treasuryKeypair: Keypair;
-    try {
-      if (secretKeyStr.trim().startsWith('[')) {
-        // Handle JSON array format
-        const secretKey = Uint8Array.from(JSON.parse(secretKeyStr));
-        treasuryKeypair = Keypair.fromSecretKey(secretKey);
-      } else {
-        // Handle Base58 format
-        treasuryKeypair = Keypair.fromSecretKey(bs58.decode(secretKeyStr));
+    if ((userError || !userData) && (currency === 'SOL' || currency === 'ETH')) {
+      const fallbackCurrency = currency === 'SOL' ? 'ETH' : 'SOL';
+      const fallback = await supabase
+        .from('user_balances')
+        .select('balance, status')
+        .eq('user_address', userAddress)
+        .eq('currency', fallbackCurrency)
+        .single();
+      if (!fallback.error && fallback.data) {
+        userData = fallback.data;
+        userError = null;
+        resolvedCurrency = fallbackCurrency;
       }
-    } catch (e) {
-      console.error('Failed to parse SOLANA_TREASURY_SECRET_KEY:', e);
-      return NextResponse.json({ error: 'Server configuration error: Invalid treasury key' }, { status: 500 });
     }
 
-    const recipientPubKey = new PublicKey(userAddress);
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: treasuryKeypair.publicKey,
-        toPubkey: recipientPubKey,
-        lamports: Math.floor(amount * LAMPORTS_PER_SOL),
-      })
-    );
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User record not found' }, { status: 404 });
+    }
 
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = treasuryKeypair.publicKey;
+    if (userData.status === 'frozen') {
+      return NextResponse.json({ error: 'Account is frozen. Withdrawals are disabled.' }, { status: 403 });
+    }
 
-    const signature = await connection.sendTransaction(transaction, [treasuryKeypair]);
+    if (userData.status === 'banned') {
+      return NextResponse.json({ error: 'Account is banned.' }, { status: 403 });
+    }
 
-    // Wait for confirmation
-    await connection.confirmTransaction({
-      signature,
-      blockhash,
-      lastValidBlockHeight
-    }, 'confirmed');
+    const balance = Number(userData.balance);
+    const epsilon = 1e-9;
+    if (balance < amount - epsilon) {
+      return NextResponse.json({ error: `Insufficient house balance in ${resolvedCurrency}` }, { status: 400 });
+    }
+
+    // 2. Apply 2% Treasury Fee
+    const feePercent = 0.02;
+    const feeAmount = amount * feePercent;
+    const netWithdrawAmount = amount - feeAmount;
+
+    const displayCurrency = resolvedCurrency === 'ETH' ? 'SOL' : resolvedCurrency;
+    console.log(`Withdrawal Request: Total=${amount}, Fee=${feeAmount}, Net=${netWithdrawAmount}, Currency=${displayCurrency}`);
+
+    // 3. Perform transfer from treasury (Solana native or SPL)
+    let signature: string;
+    try {
+      if (resolvedCurrency === 'BYNOMO') {
+        const { transferTokenFromTreasury } = await import('@/lib/solana/backend-client');
+        const BYNOMO_MINT = 'Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump';
+        signature = await transferTokenFromTreasury(userAddress, netWithdrawAmount, BYNOMO_MINT);
+      } else {
+        const { transferSOLFromTreasury } = await import('@/lib/solana/backend-client');
+        signature = await transferSOLFromTreasury(userAddress, netWithdrawAmount);
+      }
+    } catch (e: any) {
+      console.error('Transfer failed:', e);
+      return NextResponse.json({ error: `Withdrawal failed: ${e.message}` }, { status: 500 });
+    }
 
     // 3. Update Supabase balance using RPC
     const { data, error } = await supabase.rpc('update_balance_for_withdrawal', {
       p_user_address: userAddress,
       p_withdrawal_amount: amount,
+      p_currency: resolvedCurrency,
       p_transaction_hash: signature,
     });
 
@@ -121,12 +131,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = data as { success: boolean; error: string | null; new_balance: number };
+    const rpcResult = data as { success: boolean; error: string | null; new_balance: number };
 
     return NextResponse.json({
       success: true,
       txHash: signature,
-      newBalance: result.new_balance,
+      newBalance: rpcResult.new_balance,
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/balance/withdraw:', error);

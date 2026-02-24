@@ -1,8 +1,11 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useOverflowStore } from '@/lib/store';
 import { useToast } from '@/lib/hooks/useToast';
+import { usePrivy } from '@privy-io/react-auth';
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -21,8 +24,12 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { address, withdrawFunds, houseBalance, fetchBalance } = useOverflowStore();
+  const { address, withdrawFunds, houseBalance, network, refreshWalletBalance, isConnected } = useOverflowStore();
   const toast = useToast();
+
+  const selectedCurrency = useOverflowStore(state => state.selectedCurrency);
+  const currencySymbol = network === 'SUI' ? 'USDC' : network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM' ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB';
+  const networkName = network === 'SUI' ? 'Sui Network' : network === 'SOL' ? 'Solana' : network === 'XLM' ? 'Stellar' : network === 'XTZ' ? 'Tezos' : network === 'NEAR' ? 'NEAR Protocol' : 'BNB Chain';
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -39,7 +46,6 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
     }
 
     const numValue = parseFloat(value);
-
     if (isNaN(numValue)) {
       return 'Please enter a valid number';
     }
@@ -77,7 +83,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
       return;
     }
 
-    if (!address) {
+    if (!isConnected || !address) {
       setError('Please connect your wallet');
       return;
     }
@@ -87,53 +93,28 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
       setError(null);
 
       const withdrawAmount = parseFloat(amount);
-
       toast.info('Processing withdrawal...');
 
-      // Call the withdrawal API
-      // The backend will handle the Solana transfer from the treasury wallet
-      const response = await fetch('/api/balance/withdraw', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userAddress: address,
-          amount: withdrawAmount,
-        }),
-      });
+      // Call the withdrawal store action (which calls the backend)
+      const result = await withdrawFunds(address, withdrawAmount);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to process withdrawal');
-      }
+      // Refresh balances
+      refreshWalletBalance();
 
       console.log('Withdrawal successful:', result.txHash);
 
-      // Update local state
-      await fetchBalance(address);
-
       toast.success(
-        `Successfully withdrew ${withdrawAmount.toFixed(4)} SOL! Balance updated.`
+        `Successfully withdrew ${withdrawAmount.toFixed(4)} ${currencySymbol}! Balance updated.`
       );
 
-      if (onSuccess) {
-        onSuccess(withdrawAmount, result.txHash);
-      }
-
+      if (onSuccess) onSuccess(withdrawAmount, result.txHash);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Withdrawal error:', err);
-      let errorMessage = 'Failed to withdraw funds';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
+      const errorMessage = err.message || 'Failed to withdraw funds';
       setError(errorMessage);
       toast.error(errorMessage);
-      if (onError) {
-        onError(errorMessage);
-      }
+      if (onError) onError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -143,16 +124,32 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Withdraw SOL"
+      title={`Withdraw ${currencySymbol}`}
       showCloseButton={!isLoading}
     >
       <div className="space-y-4">
-        <div className="bg-gradient-to-br from-[#FF006E]/10 to-purple-500/10 border border-[#FF006E]/30 rounded-lg p-3">
+        <div className="bg-gradient-to-br from-[#FF006E]/10 to-purple-500/10 border border-[#FF006E]/30 rounded-lg p-3 relative overflow-hidden">
+          <div className="absolute top-0 right-0 px-2 py-0.5 bg-[#FF006E]/20 text-[#FF006E] text-[8px] font-bold uppercase tracking-tighter rounded-bl-lg">
+            {networkName}
+          </div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-1 font-mono">
             Available to Withdraw
           </p>
-          <p className="text-[#FF006E] text-xl font-bold font-mono">
-            {houseBalance.toFixed(4)} SOL
+          <p className="text-[#FF006E] text-xl font-bold font-mono flex items-center gap-2">
+            <img
+              src={
+                network === 'SUI' ? '/logos/sui-logo.png' :
+                  (network === 'SOL' && selectedCurrency === 'BYNOMO') ? '/overflowlogo.png' :
+                    network === 'SOL' ? '/logos/solana-sol-logo.png' :
+                      network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
+                        network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
+                          network === 'NEAR' ? '/logos/near-logo.svg' :
+                            '/logos/bnb-bnb-logo.png'
+              }
+              alt={currencySymbol}
+              className="w-5 h-5 object-contain"
+            />
+            {houseBalance.toFixed(4)} {currencySymbol}
           </p>
         </div>
 
@@ -175,17 +172,29 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
               `}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-mono">
-              SOL
+              {currencySymbol}
             </span>
           </div>
 
-          <button
-            onClick={handleMaxClick}
-            disabled={isLoading || houseBalance === 0}
-            className="text-[10px] text-[#FF006E] hover:text-[#FF006E]/80 font-mono disabled:opacity-50 transition-colors uppercase tracking-wider"
-          >
-            Withdraw All
-          </button>
+          <div className="flex justify-between items-center">
+            <button
+              onClick={handleMaxClick}
+              disabled={isLoading || houseBalance === 0}
+              className="text-[10px] text-[#FF006E] hover:text-[#FF006E]/80 font-mono disabled:opacity-50 transition-colors uppercase tracking-wider"
+            >
+              Withdraw All
+            </button>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-500 font-mono">
+                Admin Fee: <span className="text-red-400">2%</span>
+              </p>
+              {amount && !isNaN(parseFloat(amount)) && (
+                <p className="text-[10px] text-gray-400 font-mono">
+                  You Receive: <span className="text-green-400">{(parseFloat(amount) * 0.98).toFixed(4)} {currencySymbol}</span>
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -218,7 +227,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
                 <span>Processing</span>
               </span>
             ) : (
-              'Withdraw SOL'
+              `Withdraw ${currencySymbol}`
             )}
           </Button>
         </div>

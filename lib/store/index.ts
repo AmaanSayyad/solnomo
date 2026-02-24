@@ -1,22 +1,24 @@
 /**
- * Main Zustand store for Suinomo dApp
- * Combines wallet, game, and history slices
- * 
- * Note: After Sui migration, blockchain event subscriptions are handled
- * by the event listener service (lib/sui/event-listener.ts) for deposit/withdrawal events.
- * Game logic remains off-chain.
- */
+* Main Zustand store for Solnomo dApp
+* Combines wallet, game, and history slices
+* 
+* Note: After migration, blockchain events are handled
+* by the native chain backend client for deposit/withdrawal confirmation.
+* Game logic remains off-chain.
+*/
 
 import { create } from "zustand";
 import { WalletState, createWalletSlice } from "./walletSlice";
-import { GameState, createGameSlice, startPriceFeed } from "./gameSlice";
+import { GameState, createGameSlice, startPriceFeed, startGlobalPriceFeed } from "./gameSlice";
 import { HistoryState, createHistorySlice, restoreBetHistory } from "./historySlice";
 import { BalanceState, createBalanceSlice } from "./balanceSlice";
+import { ReferralState, createReferralSlice } from "./referralSlice";
+import { ProfileState, createProfileSlice } from "./profileSlice";
 
 /**
  * Combined store type
  */
-export type OverflowStore = WalletState & GameState & HistoryState & BalanceState;
+export type OverflowStore = WalletState & GameState & HistoryState & BalanceState & ReferralState & ProfileState;
 
 /**
  * Create the main Zustand store
@@ -26,43 +28,43 @@ export const useOverflowStore = create<OverflowStore>()((...args) => ({
   ...createWalletSlice(...args),
   ...createGameSlice(...args),
   ...createHistorySlice(...args),
-  ...createBalanceSlice(...args)
+  ...createBalanceSlice(...args),
+  ...createReferralSlice(...args),
+  ...createProfileSlice(...args)
 }));
 
 /**
  * Initialize the store
  * Restores sessions, loads data
  * Should be called once on app initialization
- * 
- * Note: After Sui migration, wallet session restoration is handled by
- * @mysten/dapp-kit's autoConnect feature in app/providers.tsx
  */
 export const initializeStore = async (): Promise<void> => {
   const store = useOverflowStore.getState();
-  
+
   try {
     // Restore bet history from localStorage
     restoreBetHistory((bets) => {
       useOverflowStore.setState({ bets });
     });
-    
+
     // Load target cells
     await store.loadTargetCells();
-    
+
     // Fetch house balance if wallet is connected
     if (store.address) {
       await store.fetchBalance(store.address);
     }
-    
+
     // Start price feed polling
-    const stopPriceFeed = startPriceFeed(store.updatePrice);
-    
+    const stopPriceFeed = store.startGlobalPriceFeed(store.updateAllPrices);
+
     // Store cleanup function for later use
     (window as any).__overflowCleanup = () => {
       stopPriceFeed();
     };
-    
-    console.log("Overflow store initialized successfully");
+
+
+    console.log("Solnomo store initialized successfully");
   } catch (error) {
     console.error("Error initializing store:", error);
   }
@@ -84,7 +86,7 @@ export const cleanupStore = (): void => {
  * Export individual selectors for optimized re-renders
  */
 export const useWalletAddress = () => useOverflowStore(state => state.address);
-export const useWalletBalance = () => useOverflowStore(state => state.balance);
+export const useWalletBalance = () => useOverflowStore(state => state.walletBalance);
 export const useIsConnected = () => useOverflowStore(state => state.isConnected);
 export const useCurrentPrice = () => useOverflowStore(state => state.currentPrice);
 export const usePriceHistory = () => useOverflowStore(state => state.priceHistory);
@@ -95,6 +97,7 @@ export const useIsPlacingBet = () => useOverflowStore(state => state.isPlacingBe
 export const useIsSettling = () => useOverflowStore(state => state.isSettling);
 export const useHouseBalance = () => useOverflowStore(state => state.houseBalance);
 export const useIsLoadingBalance = () => useOverflowStore(state => state.isLoading);
+export const useUserTier = () => useOverflowStore(state => state.userTier);
 
 /**
  * Export main store hook (alias for convenience)
@@ -109,8 +112,8 @@ export const useStore = useOverflowStore;
 export const useWalletActions = () => {
   const connect = useOverflowStore(state => state.connect);
   const disconnect = useOverflowStore(state => state.disconnect);
-  const refreshBalance = useOverflowStore(state => state.refreshBalance);
-  return { connect, disconnect, refreshBalance };
+  const refreshWalletBalance = useOverflowStore(state => state.refreshWalletBalance);
+  return { connect, disconnect, refreshWalletBalance };
 };
 
 export const useGameActions = () => {

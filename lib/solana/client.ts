@@ -3,6 +3,7 @@
  */
 
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { prepareMagicTransaction } from 'magic-router-sdk';
 import { getSolanaConfig } from './config';
 import { logTransactionError, logInfo } from '@/lib/logging/error-logger';
 
@@ -42,25 +43,160 @@ export async function buildDepositTransaction(
         })
     );
 
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
     transaction.feePayer = userPublicKey;
 
-    return transaction;
+    // Use Magic Router to prepare the transaction (fetches correct blockhash)
+    return await prepareMagicTransaction(connection, transaction);
 }
 
 /**
- * Get SOL balance for a given address
+ * Build a token deposit transaction
  */
-export async function getSOLBalance(address: string): Promise<number> {
+export async function buildTokenDepositTransaction(
+    amount: number,
+    userAddress: string,
+    mintAddress: string
+): Promise<Transaction> {
+    const {
+        getAssociatedTokenAddress,
+        createTransferInstruction,
+        getMint
+    } = await import('@solana/spl-token');
+
+    const config = getSolanaConfig();
     const connection = getSolanaConnection();
 
+    const userPublicKey = new PublicKey(userAddress);
+    const treasuryPublicKey = new PublicKey(config.treasuryAddress);
+    const mintPublicKey = new PublicKey(mintAddress);
+
+    // Get mint info for decimals
+    const mintInfo = await getMint(connection, mintPublicKey);
+    const decimals = mintInfo.decimals;
+
+    // Get ATAs
+    const userTokenAccount = await getAssociatedTokenAddress(mintPublicKey, userPublicKey);
+    const treasuryTokenAccount = await getAssociatedTokenAddress(mintPublicKey, treasuryPublicKey);
+
+    const transaction = new Transaction().add(
+        createTransferInstruction(
+            userTokenAccount,
+            treasuryTokenAccount,
+            userPublicKey,
+            Math.floor(amount * Math.pow(10, decimals))
+        )
+    );
+
+    transaction.feePayer = userPublicKey;
+
+    // Use Magic Router to prepare the transaction (fetches correct blockhash)
+    return await prepareMagicTransaction(connection, transaction);
+}
+
+/**
+ * Get SOL balance for a given address with robust RPC fallback
+ */
+export async function getSOLBalance(address: string): Promise<number> {
+    if (!address) return 0;
+
+    // Trim address to avoid whitespace issues
+    const cleanAddress = address.trim();
+    const config = getSolanaConfig();
+
+    // Comprehensive list of reliable public providers
+    const publicRpcs = [
+        config.rpcEndpoint,
+        'https://solana-rpc.publicnode.com',
+        'https://rpc.ankr.com/solana',
+        'https://api.mainnet-beta.solana.com',
+        'https://solana-mainnet.rpc.extrnode.com',
+        'https://solana.api.onfinality.io/public',
+        'https://mainnet.helius-rpc.com/?api-key=dummy-key'
+    ].filter((value, index, self) => value && self.indexOf(value) === index);
+
+    for (const rpc of publicRpcs) {
+        try {
+            // Validation
+            const publicKey = new PublicKey(cleanAddress);
+            if (!PublicKey.isOnCurve(publicKey.toBytes())) {
+                console.error(`Invalid SOL address: ${cleanAddress}`);
+                return 0;
+            }
+
+            const conn = new Connection(rpc, {
+                commitment: 'confirmed',
+                disableRetryOnRateLimit: true,
+                // Increase internal timeout
+                confirmTransactionInitialTimeout: 10000
+            });
+
+            const balance = await conn.getBalance(publicKey);
+            return balance / LAMPORTS_PER_SOL;
+        } catch (error: any) {
+            const errorMsg = error?.message || 'Connection Error';
+            console.warn(`Solana RPC Fail: ${rpc} | Error: ${errorMsg}`);
+
+            if (rpc === publicRpcs[publicRpcs.length - 1]) {
+                // Final fetch-based attempt with correct parameters
+                try {
+                    console.log('Attempting final direct fetch bakiye sorgusu...');
+                    const response = await fetch(publicRpcs[0], {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'getBalance',
+                            params: [cleanAddress, { commitment: 'confirmed' }]
+                        })
+                    });
+                    const data = await response.json();
+
+                    if (data?.result?.value !== undefined) {
+                        return data.result.value / LAMPORTS_PER_SOL;
+                    } else if (data?.error) {
+                        console.error('RPC Error Response:', data.error);
+                    }
+                } catch (fetchErr) {
+                    console.error('All SOL balance retrieval methods failed completely.');
+                }
+                return 0;
+            }
+            continue;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Get SPL token balance for a given address and mint
+ */
+export async function getTokenBalance(address: string, mintAddress: string): Promise<number> {
+    if (!address || !mintAddress) return 0;
+
     try {
-        const publicKey = new PublicKey(address);
-        const balance = await connection.getBalance(publicKey);
-        return balance / LAMPORTS_PER_SOL;
-    } catch (error) {
-        console.error('Failed to get SOL balance:', error);
+        const connection = getSolanaConnection();
+        const owner = new PublicKey(address);
+        const mint = new PublicKey(mintAddress);
+
+        const response = await connection.getParsedTokenAccountsByOwner(owner, {
+            mint: mint,
+        });
+
+        if (response.value.length === 0) return 0;
+
+        // Sum up balances if multiple accounts exist (unlikely for most users)
+        let totalBalance = 0;
+        for (const account of response.value) {
+            const amount = account.account.data.parsed.info.tokenAmount.uiAmount;
+            totalBalance += amount || 0;
+        }
+
+        return totalBalance;
+    } catch (error: any) {
+        if (!error?.message?.includes('could not find mint')) {
+            console.error(`Error fetching token balance for ${mintAddress}:`, error);
+        }
         return 0;
     }
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -20,14 +22,39 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "Solnomo",
-  description: "Decentralized real-time BTC price prediction game on Solana Blockchain",
+  metadataBase: new URL('https://solnomo.fun'),
+  title: "Solnomo - Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
+  description:
+    "The first Solana on-chain binary options trading dapp. Powered by Pyth Hermes price attestations, Supabase, and x402-style payments. Oracle-bound resolution, minimal trust.",
+  keywords: [
+    "binary options",
+    "crypto trading",
+    "Pyth oracle",
+    "Solana",
+    "SOL",
+    "Web3",
+    "prediction",
+  ],
   icons: {
     icon: "/overflowlogo.ico",
     shortcut: "/overflowlogo.ico",
     apple: "/overflowlogo.ico",
   },
+  openGraph: {
+    title: "Solnomo — Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
+    description:
+      "The first Solana on-chain binary options trading dapp. Powered by Pyth Hermes price attestations, Supabase, and x402-style payments. Oracle-bound resolution, minimal trust",
+    images: [{ url: '/overflowlogo.png', width: 512, height: 512, alt: 'Solnomo' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Solnomo — Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
+    description: "Trade binary options with oracle-bound resolution and minimal trust on Solana.",
+    images: ['/overflowlogo.png'],
+  },
 };
+
+import { Header } from "@/components/Header";
 
 export default function RootLayout({
   children,
@@ -37,11 +64,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased bg-[#0a0a0a] text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased bg-[#02040a] text-white h-screen overflow-hidden flex flex-col`}
       >
         <Providers>
-          {children}
+          <Header />
+          <main className="flex-1 relative overflow-y-auto overflow-x-hidden">
+            {children}
+          </main>
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

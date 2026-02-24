@@ -2,7 +2,7 @@
  * Balance state slice for Zustand store
  * Manages house balance state and operations (deposit, withdraw, bet)
  * 
- * Task: 8.2 Update balance slice for Sui migration
+ * Task: 8.2 Update balance slice for BNB migration
  * Requirements: 3.5
  */
 
@@ -11,6 +11,9 @@ import { StateCreator } from "zustand";
 export interface BalanceState {
   // State
   houseBalance: number;
+  demoBalance: number;
+  accountType: 'real' | 'demo';
+  userTier: 'free' | 'standard' | 'vip';
   isLoading: boolean;
   error: string | null;
 
@@ -18,8 +21,9 @@ export interface BalanceState {
   fetchBalance: (address: string) => Promise<void>;
   setBalance: (balance: number) => void;
   updateBalance: (amount: number, operation: 'add' | 'subtract') => void;
-  depositFunds: (address: string, amount: number, txHash: string) => Promise<void>;
-  withdrawFunds: (address: string, amount: number, txHash: string) => Promise<void>;
+  depositFunds: (address: string, amount: number, txHash: string) => Promise<any>;
+  withdrawFunds: (address: string, amount: number) => Promise<any>;
+  toggleAccountType: () => void;
   clearError: () => void;
 }
 
@@ -30,25 +34,40 @@ export interface BalanceState {
 export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
   // Initial state
   houseBalance: 0,
+  demoBalance: 10000, // 10,000 demo BNB to start
+  accountType: (typeof window !== 'undefined' && localStorage.getItem('solnomo_account_type') as 'real' | 'demo') || 'real', // Persist account type
+  userTier: 'free',
   isLoading: false,
   error: null,
 
   /**
    * Fetch house balance for a user address
    * Queries the balance API endpoint
-   * @param address - Sui wallet address
+   * @param address - Wallet address
    */
   fetchBalance: async (address: string) => {
-    if (!address) {
-      return;
+    const { accountType } = get();
+    // Access network and currency from combined store if available
+    let network = (get() as any).network || 'BNB';
+    const selectedCurrency = (get() as any).selectedCurrency;
+    let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
+    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
+
+    if (address && (address.endsWith('.near') || address.endsWith('.testnet') || /^[0-9a-fA-F]{64}$/.test(address))) {
+      currency = 'NEAR';
+    } else if (address && /^(tz1|tz2|tz3|KT1)[a-zA-Z0-9]{33}$/.test(address)) {
+      currency = 'XTZ';
     }
 
-    const formattedAddress = address;
+    // Skip API fetch for demo mode as it uses local state only
+    if (!address || accountType === 'demo' || address.startsWith('0xDEMO')) {
+      return;
+    }
 
     try {
       set({ isLoading: true, error: null });
 
-      const response = await fetch(`/api/balance/${formattedAddress}`);
+      const response = await fetch(`/api/balance/${address}?currency=${currency}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -59,6 +78,7 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
 
       set({
         houseBalance: data.balance || 0,
+        userTier: data.tier || 'free',
         isLoading: false,
         error: null
       });
@@ -87,23 +107,52 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * @param operation - 'add' to increase balance, 'subtract' to decrease
    */
   updateBalance: (amount: number, operation: 'add' | 'subtract') => {
-    const { houseBalance } = get();
+    const { houseBalance, demoBalance, accountType } = get();
+
+    if (accountType === 'demo') {
+      const newDemoBalance = operation === 'add'
+        ? demoBalance + amount
+        : Math.max(0, demoBalance - amount);
+      set({ demoBalance: newDemoBalance });
+      return;
+    }
+
     const newBalance = operation === 'add'
       ? houseBalance + amount
-      : Math.max(0, houseBalance - amount); // Prevent negative balance
+      : Math.max(0, houseBalance - amount);
 
     set({ houseBalance: newBalance });
+  },
+
+  /**
+   * Toggle between real and demo accounts
+   */
+  toggleAccountType: () => {
+    const { accountType } = get();
+    const newType = accountType === 'real' ? 'demo' : 'real';
+    set({ accountType: newType });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('solnomo_account_type', newType);
+    }
   },
 
   /**
    * Process deposit funds operation
    * Called after deposit transaction completes to update database
    * @param address - User wallet address
-   * @param amount - Deposit amount in USDC
+   * @param amount - Deposit amount
    * @param txHash - Transaction hash for audit trail
    */
   depositFunds: async (address: string, amount: number, txHash: string) => {
-    const formattedAddress = address;
+    let network = (get() as any).network || 'BNB';
+    const selectedCurrency = (get() as any).selectedCurrency;
+    let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
+    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
+
+    // Override network for NEAR addresses
+    if (address.endsWith('.near') || address.endsWith('.testnet') || /^[0-9a-fA-F]{64}$/.test(address)) {
+      currency = 'NEAR';
+    }
 
     try {
       set({ isLoading: true, error: null });
@@ -114,9 +163,10 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userAddress: formattedAddress,
+          userAddress: address,
           amount,
           txHash,
+          currency: currency
         }),
       });
 
@@ -132,6 +182,11 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
         isLoading: false,
         error: null
       });
+
+      // Secondary check after a delay to ensure eventual consistency
+      setTimeout(() => get().fetchBalance(address), 1500);
+
+      return data;
     } catch (error) {
       console.error('Error processing deposit:', error);
       set({
@@ -146,11 +201,13 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * Process withdraw funds operation
    * Called after withdrawal transaction completes to update database
    * @param address - User wallet address
-   * @param amount - Withdrawal amount in USDC
-   * @param txHash - Transaction hash for audit trail
+   * @param amount - Withdrawal amount
    */
-  withdrawFunds: async (address: string, amount: number, txHash: string) => {
-    const formattedAddress = address;
+  withdrawFunds: async (address: string, amount: number) => {
+    const network = (get() as any).network || 'BNB';
+    const selectedCurrency = (get() as any).selectedCurrency;
+    let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
+    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
     try {
       set({ isLoading: true, error: null });
@@ -161,9 +218,9 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userAddress: formattedAddress,
+          userAddress: address,
           amount,
-          txHash,
+          currency: currency
         }),
       });
 
@@ -179,6 +236,11 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
         isLoading: false,
         error: null
       });
+
+      // Secondary check after a delay to ensure eventual consistency
+      setTimeout(() => get().fetchBalance(address), 1500);
+
+      return data;
     } catch (error) {
       console.error('Error processing withdrawal:', error);
       set({

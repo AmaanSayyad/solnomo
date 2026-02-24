@@ -30,6 +30,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export interface UserBalance {
   user_address: string;
   balance: number;
+  currency: string;
+  user_tier: 'free' | 'standard' | 'gold' | 'vip';
+  status: 'active' | 'frozen' | 'banned';
   updated_at: string;
   created_at: string;
 }
@@ -44,4 +47,25 @@ export interface BalanceAuditLog {
   transaction_hash?: string;
   bet_id?: string;
   created_at: string;
+}
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+export interface UserReferral {
+  user_address: string;
+  referral_code: string;
+  referred_by?: string;
+  referral_count: number;
+  created_at: string;
+}
+
+export interface UserProfile {
+  user_address: string;
+  username: string;
+  created_at: string;
+  updated_at: string;
 }

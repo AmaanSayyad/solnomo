@@ -11,11 +11,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import { PublicKey } from '@solana/web3.js';
+import { ethers } from 'ethers';
 
 interface PayoutRequest {
   userAddress: string;
   payoutAmount: number;
+  currency: string;
   betId: string;
 }
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body: PayoutRequest = await request.json();
-    const { userAddress, payoutAmount, betId } = body;
+    const { userAddress, payoutAmount, currency = 'BNB', betId } = body;
 
     // Validate required fields
     if (!userAddress || payoutAmount === undefined || payoutAmount === null || !betId) {
@@ -33,12 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate Solana address
-    try {
-      new PublicKey(userAddress);
-    } catch (e) {
+    // Validate address using utility
+    const { isValidAddress } = await import('@/lib/utils/address');
+    if (!(await isValidAddress(userAddress))) {
       return NextResponse.json(
-        { error: 'Invalid Solana address format' },
+        { error: 'Invalid wallet address format' },
         { status: 400 }
       );
     }
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.rpc('credit_balance_for_payout', {
       p_user_address: userAddress,
       p_payout_amount: payoutAmount,
+      p_currency: currency,
       p_bet_id: betId,
     });
 

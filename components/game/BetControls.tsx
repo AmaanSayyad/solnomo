@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -18,11 +18,50 @@ export const BetControls: React.FC<BetControlsProps> = ({
   onBetAmountChange,
   onPlaceBet
 }) => {
-  const houseBalance = useStore((state) => state.houseBalance);
-  const isConnected = useStore((state) => state.isConnected);
-  const activeRound = useStore((state) => state.activeRound);
-  const targetCells = useStore((state) => state.targetCells);
-  const isPlacingBet = useStore((state) => state.isPlacingBet);
+  const {
+    houseBalance,
+    demoBalance,
+    accountType,
+    network,
+    activeRound,
+    targetCells,
+    isPlacingBet,
+    address
+  } = useStore();
+
+  const isWalletConnected = !!address;
+  const isUnauthorized = false;
+  const activeBalance = accountType === 'demo' ? demoBalance : houseBalance;
+
+  const currencySymbol = useMemo(() => {
+    switch (network) {
+      case 'XTZ': return 'XTZ';
+      case 'NEAR': return 'NEAR';
+      case 'SUI': return 'USDC';
+      case 'SOL': {
+        const state = useStore.getState() as any;
+        return state.selectedCurrency || 'SOL';
+      }
+      case 'SOL': return 'ETH';
+      default: return 'BNB';
+    }
+  }, [network]);
+
+  const currencyLogo = useMemo(() => {
+    if (network === 'SOL' && currencySymbol === 'BYNOMO') {
+      return '/overflowlogo.png';
+    }
+    switch (network) {
+      case 'SUI': return '/logos/usdc.png';
+      case 'SOL': return '/logos/solana-sol-logo.png';
+      case 'SOL': return '/logos/ethereum-eth-logo.png';
+      case 'BNB': return '/logos/bnb-bnb-logo.png';
+      case 'NEAR': return '/logos/near-logo.svg';
+      case 'XTZ': return '/logos/tezos-xtz-logo.png';
+      case 'XLM': return '/logos/stellar-xlm-logo.png';
+      default: return '/logos/ethereum-eth-logo.png';
+    }
+  }, [network, currencySymbol]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -38,8 +77,13 @@ export const BetControls: React.FC<BetControlsProps> = ({
   const validateBet = (): boolean => {
     setError(null);
 
-    if (!isConnected) {
+    if (!isWalletConnected) {
       setError('Please connect your wallet');
+      return false;
+    }
+
+    if (isUnauthorized) {
+      setError('Initialization required');
       return false;
     }
 
@@ -59,9 +103,8 @@ export const BetControls: React.FC<BetControlsProps> = ({
       return false;
     }
 
-    // Check house balance instead of wallet balance
-    if (amount > houseBalance) {
-      setError(`Insufficient house balance. You have ${houseBalance.toFixed(4)} SOL. Please deposit more.`);
+    if (amount > activeBalance) {
+      setError(`Insufficient balance. You have ${activeBalance.toFixed(4)} ${currencySymbol}. Please deposit more.`);
       return false;
     }
 
@@ -79,87 +122,87 @@ export const BetControls: React.FC<BetControlsProps> = ({
 
   return (
     <Card>
-      <div className="space-y-4">
-        <h3 className="text-xl font-bold text-white">Place Bet</h3>
+      <div className="relative overflow-hidden group/panel min-h-[400px] flex flex-col p-4">
+        {/* Main Controls with conditional blur */}
+        <div className={`space-y-4 transition-all duration-700 flex-1 ${isUnauthorized ? 'blur-xl pointer-events-none scale-[0.98] opacity-30 select-none grayscale' : ''}`}>
+          <h3 className="text-xl font-bold text-white mb-6">Place Bet</h3>
 
-        {/* House Balance */}
-        {isConnected && (
-          <div className="bg-gray-900 rounded p-3">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">House Balance</p>
-            <p className="text-white text-lg font-bold">{houseBalance.toFixed(4)} SOL</p>
+          {/* House Balance */}
+          {isWalletConnected && (
+            <div className="bg-gray-900/50 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">House Balance</p>
+                <p className="text-white text-xl font-black mt-1">{activeBalance.toFixed(4)} {currencySymbol}</p>
+              </div>
+              <img src={currencyLogo} alt={currencySymbol} className="w-8 h-8 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+            </div>
+          )}
+
+          {/* Bet Amount Input */}
+          <div className="space-y-3">
+            <label className="block text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">Bet Amount ({currencySymbol})</label>
+            <input
+              type="number"
+              value={betAmount}
+              onChange={(e) => onBetAmountChange(e.target.value)}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              disabled={!isWalletConnected || !!activeRound || isUnauthorized}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-lg focus:outline-none focus:border-neon-blue focus:bg-white/[0.08] transition-all"
+            />
           </div>
-        )}
 
-        {/* Bet Amount Input */}
-        <div>
-          <label className="block text-gray-400 text-sm mb-2 font-mono uppercase tracking-wider">Bet Amount (SOL)</label>
-          <input
-            type="number"
-            value={betAmount}
-            onChange={(e) => onBetAmountChange(e.target.value)}
-            placeholder="0.00"
-            min="0"
-            step="0.01"
-            disabled={!isConnected || !!activeRound}
-            className="w-full bg-black/50 border border-white/10 rounded px-4 py-2 text-white font-mono focus:outline-none focus:border-neon-blue focus:shadow-[0_0_10px_rgba(0,240,255,0.3)] disabled:opacity-50 transition-all"
-          />
-        </div>
+          {/* Quick Amount Buttons */}
+          <div className="grid grid-cols-4 gap-2">
+            {quickAmounts.map(amount => (
+              <button
+                key={amount}
+                onClick={() => onBetAmountChange(amount)}
+                disabled={!isWalletConnected || !!activeRound || isUnauthorized}
+                className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 text-white py-3 rounded-xl text-xs transition-all font-black"
+              >
+                {amount}
+              </button>
+            ))}
+          </div>
 
-        {/* Quick Amount Buttons */}
-        <div className="grid grid-cols-4 gap-2">
-          {quickAmounts.map(amount => (
-            <button
-              key={amount}
-              onClick={() => onBetAmountChange(amount)}
-              disabled={!isConnected || !!activeRound}
-              className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 text-white py-2 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono"
-            >
-              {amount}
-            </button>
-          ))}
-        </div>
+          {/* Selected Target Info */}
+          {selectedTargetCell && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+              <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Target Strategy</p>
+              <p className="text-white font-black flex items-center gap-2 text-sm">
+                {selectedTargetCell.label}
+                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-gray-400 font-black">x{selectedTargetCell.multiplier}</span>
+              </p>
+            </div>
+          )}
 
-        {/* Selected Target Info */}
-        {selectedTargetCell && (
-          <div className="bg-white/5 border border-white/10 rounded p-3">
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1 font-mono">Selected Target</p>
-            <p className="text-white font-semibold flex items-center gap-2">
-              {selectedTargetCell.label}
-              <span className="text-xs bg-white/10 px-1.5 rounded text-gray-300 font-normal">x{selectedTargetCell.multiplier}</span>
+          {/* Potential Payout */}
+          {selectedTarget && betAmount && parseFloat(betAmount) > 0 && (
+            <div className="bg-neon-blue/5 border border-neon-blue/20 rounded-2xl p-4">
+              <p className="text-neon-blue/60 text-[10px] font-black uppercase tracking-widest mb-1">Potential Win</p>
+              <p className="text-neon-blue text-2xl font-black tracking-tighter">{potentialPayout} {currencySymbol}</p>
+            </div>
+          )}
+
+          {/* Place Bet Button */}
+          <Button
+            onClick={handlePlaceBet}
+            disabled={!isWalletConnected || !!activeRound || isPlacingBet || isUnauthorized}
+            className="w-full py-7 rounded-2xl font-black text-sm uppercase tracking-widest mt-4"
+            size="lg"
+          >
+            {isPlacingBet ? 'Transmitting...' : 'Initiate Trade'}
+          </Button>
+
+          {!isWalletConnected && (
+            <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest text-center mt-4">
+              Network Connection Required
             </p>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Potential Payout */}
-        {selectedTarget && betAmount && parseFloat(betAmount) > 0 && (
-          <div className="bg-neon-blue/10 border border-neon-blue/50 rounded p-3 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
-            <p className="text-neon-blue text-xs uppercase tracking-wider mb-1 font-mono">Potential Win</p>
-            <p className="text-neon-blue text-2xl font-bold font-mono text-shadow-neon">{potentialPayout} SOL</p>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-900/20 border border-red-500 rounded p-3">
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Place Bet Button */}
-        <Button
-          onClick={handlePlaceBet}
-          disabled={!isConnected || !!activeRound || isPlacingBet}
-          className="w-full"
-          size="lg"
-        >
-          {isPlacingBet ? 'Placing Bet...' : 'Place Bet'}
-        </Button>
-
-        {!isConnected && (
-          <p className="text-gray-500 text-sm text-center">
-            Connect your wallet to place bets
-          </p>
-        )}
       </div>
     </Card>
   );

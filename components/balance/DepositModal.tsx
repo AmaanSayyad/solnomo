@@ -1,11 +1,22 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useOverflowStore } from '@/lib/store';
 import { useToast } from '@/lib/hooks/useToast';
-import { buildDepositTransaction, getSOLBalance } from '@/lib/solana/client';
+import { getBNBConfig } from '@/lib/bnb/config';
+import { getAddress } from 'viem';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { getSuiConfig } from '@/lib/sui/config';
+import { buildDepositTransaction as buildSuiDepositTransaction } from '@/lib/sui/client';
+
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { useSignAndExecuteTransaction, useCurrentAccount } from '@mysten/dapp-kit';
+import { useSendTransaction, useSwitchChain, useAccount, usePublicClient } from 'wagmi';
+import { parseEther } from 'viem';
+import { getARBConfig } from '@/lib/bnb/config';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -23,15 +34,32 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   const [amount, setAmount] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [solBalance, setSolBalance] = useState<number>(0);
 
-  const { address, depositFunds, houseBalance } = useOverflowStore();
+  const { wallets: privyWallets } = useWallets();
+  const { authenticated, user } = usePrivy();
+
+  // Solana Hook
+  const { sendTransaction: signAndSendSolana, publicKey: solanaPublicKey } = useSolanaWallet();
+
+  // Sui Hooks
+  const { mutateAsync: signAndExecuteSui } = useSignAndExecuteTransaction();
+  const suiAccount = useCurrentAccount();
+
+  // Wagmi Hooks
+  const { sendTransactionAsync } = useSendTransaction();
+  const { switchChainAsync } = useSwitchChain();
+  const { chainId: activeChainId } = useAccount();
+  const publicClient = usePublicClient();
+
+  const { depositFunds, network, walletBalance, refreshWalletBalance, address } = useOverflowStore();
   const toast = useToast();
-  const { connection } = useConnection();
-  const { sendTransaction } = useWallet();
+
+  const selectedCurrency = useOverflowStore(state => state.selectedCurrency);
+  const currencySymbol = network === 'SUI' ? 'USDC' : network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM' ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB';
+  const networkName = network === 'SUI' ? 'Sui Network' : network === 'SOL' ? 'Solana' : network === 'XLM' ? 'Stellar' : network === 'XTZ' ? 'Tezos' : network === 'NEAR' ? 'NEAR Protocol' : 'BNB Chain';
 
   // Quick select amounts
-  const quickAmounts = [0.1, 0.5, 1, 5];
+  const quickAmounts = network === 'SUI' ? [1, 5, 10, 25] : [0.1, 0.5, 1, 5];
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -42,50 +70,12 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     }
   }, [isOpen]);
 
-  // Fetch SOL balance when modal opens or address changes
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchBalance = async () => {
-      if (!isOpen || !address) return;
-
-      try {
-        console.log('Fetching SOL balance for:', address);
-        // Use the connection from the hook for consistency with the provider
-        const publicKey = new PublicKey(address);
-        const balanceLamports = await connection.getBalance(publicKey, 'confirmed');
-        const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
-
-        if (mounted) {
-          console.log('Fetched balance:', balanceSOL);
-          setSolBalance(balanceSOL);
-        }
-      } catch (err) {
-        console.error('Failed to fetch SOL balance in modal:', err);
-        // Fallback to the client method if connection hook fails
-        try {
-          const bal = await getSOLBalance(address);
-          if (mounted) setSolBalance(bal);
-        } catch (innerErr) {
-          console.error('Fallback balance fetch also failed:', innerErr);
-        }
-      }
-    };
-
-    fetchBalance();
-
-    return () => {
-      mounted = false;
-    };
-  }, [isOpen, address, connection]);
-
   const validateAmount = (value: string): string | null => {
     if (!value || value.trim() === '') {
       return 'Please enter an amount';
     }
 
     const numValue = parseFloat(value);
-
     if (isNaN(numValue)) {
       return 'Please enter a valid number';
     }
@@ -94,8 +84,8 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       return 'Amount must be greater than zero';
     }
 
-    if (numValue > solBalance) {
-      return 'Insufficient SOL balance';
+    if (numValue > walletBalance) {
+      return `Insufficient ${currencySymbol} balance`;
     }
 
     return null;
@@ -115,10 +105,11 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   };
 
   const handleMaxClick = () => {
-    if (solBalance > 0) {
-      // Leave a small amount for gas
-      const maxAmount = Math.max(0, solBalance - 0.005);
-      setAmount(maxAmount.toString());
+    if (walletBalance > 0) {
+      // Leave a small amount for gas (except for Sui USDC)
+      const gasBuffer = network === 'SUI' ? 0 : network === 'SOL' ? 0.001 : 0.005;
+      const maxAmount = Math.max(0, walletBalance - gasBuffer);
+      setAmount(maxAmount.toFixed(4));
       setError(null);
     }
   };
@@ -140,48 +131,151 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       setError(null);
 
       const depositAmount = parseFloat(amount);
-      toast.info('Please confirm the transaction in your wallet...');
+      let txHash: string;
 
-      const tx = await buildDepositTransaction(depositAmount, address);
+      if (network === 'SUI') {
+        if (!suiAccount) throw new Error('Sui wallet not connected');
+        toast.info('Please confirm the transaction in your Sui wallet...');
 
-      // Execute transaction using Solana wallet
-      const signature = await sendTransaction(tx, connection);
+        const tx = await buildSuiDepositTransaction(depositAmount, address);
+        const result = await signAndExecuteSui({ transaction: tx as any });
+        txHash = result.digest;
+
+      } else if (network === 'SOL') {
+        if (!solanaPublicKey) throw new Error('Solana wallet not connected');
+
+        const { buildDepositTransaction, buildTokenDepositTransaction, getSolanaConnection } = await import('@/lib/solana/client');
+        const connection = getSolanaConnection();
+        const selectedCurrency = useOverflowStore.getState().selectedCurrency;
+
+        let transaction;
+        if (selectedCurrency === 'BYNOMO') {
+          const BYNOMO_MINT = 'Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump';
+          transaction = await buildTokenDepositTransaction(depositAmount, address, BYNOMO_MINT);
+        } else {
+          transaction = await buildDepositTransaction(depositAmount, address);
+        }
+
+        toast.info('Please confirm the transaction in your Solana wallet...');
+
+        txHash = await signAndSendSolana(transaction, connection);
+      } else if (network === 'NEAR') {
+        const { depositNEAR } = await import('@/lib/near/wallet');
+        toast.info('Please confirm the transaction in your NEAR wallet...');
+        txHash = await depositNEAR(amount);
+      } else if (network === 'XTZ') {
+        const { BeaconWallet } = await import('@taquito/beacon-wallet');
+        const { NetworkType } = await import('@airgap/beacon-types');
+        const { getTezosClient } = await import('@/lib/tezos/client');
+
+        const rpcUrl = process.env.NEXT_PUBLIC_TEZOS_RPC_URL || 'https://rpc.tzkt.io/mainnet';
+        const wallet = new BeaconWallet({
+          name: "Solnomo",
+          preferredNode: rpcUrl,
+          network: {
+            type: NetworkType.MAINNET,
+            rpcUrl,
+          },
+        } as any);
+
+        // Clear any cached connection that might use old ecadinfra RPC
+        await wallet.clearActiveAccount();
+        await wallet.requestPermissions();
+
+        const tezos = await getTezosClient();
+        tezos.setWalletProvider(wallet);
+
+        const treasuryAddress = process.env.NEXT_PUBLIC_TEZOS_TREASURY_ADDRESS;
+        if (!treasuryAddress) throw new Error('Tezos treasury not configured');
+
+        toast.info('Please confirm the transaction in your Tezos wallet...');
+        const op = await tezos.wallet.transfer({ to: treasuryAddress, amount: depositAmount }).send();
+        txHash = op.opHash;
+      } else if (network === 'XLM') {
+        // Stellar deposit via Stellar Wallets Kit
+        const { StellarWalletsKit, WalletNetwork, allowAllModules } = await import('@creit.tech/stellar-wallets-kit');
+        const { TransactionBuilder, Networks, Operation, Asset } = await import('@stellar/stellar-sdk');
+        const { Horizon } = await import('@stellar/stellar-sdk');
+
+        const treasuryAddress = process.env.NEXT_PUBLIC_STELLAR_TREASURY_ADDRESS;
+        if (!treasuryAddress) throw new Error('Stellar treasury not configured');
+
+        const server = new Horizon.Server(process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL || 'https://horizon.stellar.org');
+        const account = await server.loadAccount(address);
+
+        const transaction = new TransactionBuilder(account, {
+          fee: '100',
+          networkPassphrase: Networks.PUBLIC,
+        })
+          .addOperation(
+            Operation.payment({
+              destination: treasuryAddress,
+              asset: Asset.native(),
+              amount: depositAmount.toFixed(7),
+            })
+          )
+          .setTimeout(30)
+          .build();
+
+        const kit = new StellarWalletsKit({
+          network: WalletNetwork.PUBLIC,
+          modules: allowAllModules(),
+        });
+
+        toast.info('Please confirm the transaction in your Stellar wallet...');
+        const { signedTxXdr } = await kit.signTransaction(transaction.toXDR());
+        const result = await server.submitTransaction(TransactionBuilder.fromXDR(signedTxXdr, Networks.PUBLIC));
+        txHash = (result as any).hash || (result as any).id || signedTxXdr.slice(0, 16);
+      } else {
+        // SOL (EVM via Wagmi)
+        const arbConfig = getARBConfig();
+        if (!arbConfig.treasuryAddress) throw new Error('Treasury address not configured');
+
+        if (activeChainId !== arbConfig.chainId && switchChainAsync) {
+          toast.info('Switching to Solana...');
+          try {
+            await switchChainAsync({ chainId: arbConfig.chainId });
+          } catch (err: any) {
+            if (err.message.includes('User rejected')) {
+              throw new Error('Please allow network switch in your wallet.');
+            }
+          }
+        }
+
+        const gasPrice = await publicClient?.getGasPrice();
+        // Add 50% buffer to gas price to handle rapid block changes on Solana
+        const adjustedGasPrice = gasPrice ? (gasPrice * BigInt(150)) / BigInt(100) : undefined;
+
+        toast.info('Please confirm the transaction in your wallet...');
+        const hash = await sendTransactionAsync({
+          to: getAddress(arbConfig.treasuryAddress),
+          value: parseEther(depositAmount.toString()),
+          chainId: arbConfig.chainId,
+          gasPrice: adjustedGasPrice,
+        });
+        txHash = hash;
+      }
 
       toast.info('Transaction submitted. Waiting for confirmation...');
 
-      // Wait for confirmation
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight
-      }, 'confirmed');
-
-      console.log('Deposit transaction successful:', signature);
-
       // Update balance in database
-      await depositFunds(address, depositAmount, signature);
+      await depositFunds(address, depositAmount, txHash!);
+
+      // Refresh balances
+      refreshWalletBalance();
 
       toast.success(
-        `Successfully deposited ${depositAmount.toFixed(4)} SOL! Balance updated.`
+        `Successfully deposited ${depositAmount.toFixed(4)} ${currencySymbol}! Balance updated.`
       );
 
-      if (onSuccess) {
-        onSuccess(depositAmount, signature);
-      }
-
+      if (onSuccess) onSuccess(depositAmount, txHash!);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Deposit error:', err);
-      let errorMessage = 'Failed to deposit funds';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
+      const errorMessage = err.message || 'Failed to deposit funds';
       setError(errorMessage);
       toast.error(errorMessage);
-      if (onError) {
-        onError(errorMessage);
-      }
+      if (onError) onError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -191,19 +285,32 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Deposit SOL"
+      title={`Deposit ${currencySymbol}`}
       showCloseButton={!isLoading}
     >
       <div className="space-y-4">
         <div className="bg-gradient-to-br from-[#00f5ff]/10 to-purple-500/10 border border-[#00f5ff]/30 rounded-lg p-3 relative overflow-hidden">
           <div className="absolute top-0 right-0 px-2 py-0.5 bg-[#00f5ff]/20 text-[#00f5ff] text-[8px] font-bold uppercase tracking-tighter rounded-bl-lg">
-            {process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}
+            {networkName}
           </div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-1 font-mono">
             Wallet Balance
           </p>
-          <p className="text-[#00f5ff] text-xl font-bold font-mono">
-            {solBalance.toFixed(4)} SOL
+          <p className="text-[#00f5ff] text-xl font-bold font-mono flex items-center gap-2">
+            <img
+              src={
+                network === 'SUI' ? '/logos/sui-logo.png' :
+                  (network === 'SOL' && selectedCurrency === 'BYNOMO') ? '/overflowlogo.png' :
+                    network === 'SOL' ? '/logos/solana-sol-logo.png' :
+                      network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
+                        network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
+                          network === 'NEAR' ? '/logos/near-logo.svg' :
+                            '/logos/bnb-bnb-logo.png'
+              }
+              alt={currencySymbol}
+              className="w-5 h-5 object-contain"
+            />
+            {walletBalance.toFixed(4)} {currencySymbol}
           </p>
         </div>
 
@@ -226,7 +333,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               `}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-mono">
-              SOL
+              {currencySymbol}
             </span>
           </div>
 
@@ -236,7 +343,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               disabled={isLoading}
               className="text-[10px] text-[#00f5ff] hover:text-cyan-400 font-mono disabled:opacity-50 transition-colors uppercase tracking-wider"
             >
-              Use Max (minus gas)
+              Use Max
             </button>
           </div>
         </div>
@@ -292,7 +399,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                 <span>Processing</span>
               </span>
             ) : (
-              'Deposit SOL'
+              `Deposit ${currencySymbol}`
             )}
           </Button>
         </div>

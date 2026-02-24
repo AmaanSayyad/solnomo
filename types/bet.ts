@@ -14,6 +14,7 @@ export interface BetRecord {
   actualChange: number;
   won: boolean;
   payout: string;
+  network?: string;
 }
 
 export interface BetStatus {

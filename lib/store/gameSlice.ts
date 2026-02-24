@@ -2,48 +2,108 @@
  * Game state slice for Zustand store
  * Manages game state, active rounds, price data, and betting actions
  * 
- * Note: After Sui migration, game logic remains off-chain.
+ * Note: After BNB migration, game logic remains off-chain.
  * Only deposit/withdrawal operations interact with the blockchain.
  */
 
 import { StateCreator } from "zustand";
 import { TargetCell, PricePoint, ActiveRound } from "@/types/game";
 import { AssetType } from "@/lib/utils/priceFeed";
+import { playWinSound, playLoseSound } from "@/lib/utils/sounds";
 
-// Active bet type for instant-resolution system
+// Game Modes
+export type GameMode = 'classic' | 'box';
+
+// Active bet (Supports both modes)
 export interface ActiveBet {
   id: string;
-  cellId: string; // The cell this bet is placed on (e.g., "cell-1737748395000-3")
+  mode: GameMode;
+  asset: AssetType; // Added for multi-asset tracking
   amount: number;
   multiplier: number;
   direction: 'UP' | 'DOWN';
   timestamp: number;
+  status: 'active' | 'settled';
+  network?: string; // Track which network (currency) this bet uses
+  // Classic mode specific
+  strikePrice?: number;
+  endTime?: number;
+  // Box mode specific
+  cellId?: string;
+  priceTop?: number;
+  priceBottom?: number;
 }
 
 export interface GameState {
-  // State
+  // Core State
+  gameMode: GameMode;
   selectedAsset: AssetType;
   currentPrice: number;
   priceHistory: PricePoint[];
-  activeRound: ActiveRound | null; // Keep for backward compatibility
-  activeBets: ActiveBet[]; // Multiple concurrent bets
+  assetPrices: Record<string, number>; // Global price tracking
+  assetHistories: Record<string, PricePoint[]>; // History for each asset
+  rawAssetPrices: Record<string, number>; // Store original prices for delta amplification
+  activeRound: ActiveRound | null;
+  activeBets: ActiveBet[];
+  settledBets: ActiveBet[];
   targetCells: TargetCell[];
   isPlacingBet: boolean;
   isSettling: boolean;
+  lastResult: {
+    won: boolean;
+    amount: number;
+    payout: number;
+    timestamp: number;
+    asset: AssetType; // Track which asset this result belongs to
+    cellId?: string; // For box mode visual feedback
+    currency?: string; // The currency usage (e.g. XLM, NEAR, BNB)
+  } | null;
   error: string | null;
+  timeframeSeconds: number;
+
+  // Blitz Round State (Premium Feature)
+  isBlitzActive: boolean;
+  blitzEndTime: number | null;
+  nextBlitzTime: number;
+  hasBlitzAccess: boolean;
+  blitzMultiplier: number;
+  activeTab: 'bet' | 'wallet' | 'blitz';
+  activeIndicators: Record<string, boolean>;
+  isIndicatorsOpen: boolean;
+  isTourOpen: boolean;
 
   // Actions
+  setActiveTab: (tab: 'bet' | 'wallet' | 'blitz') => void;
+  setGameMode: (mode: GameMode) => void;
   setSelectedAsset: (asset: AssetType) => void;
+  setTimeframeSeconds: (seconds: number) => void;
   placeBet: (amount: string, targetId: string) => Promise<void>;
-  placeBetFromHouseBalance: (amount: string, targetId: string, userAddress: string, cellId?: string) => Promise<{ betId: string; remainingBalance: number; bet: ActiveBet } | void>;
+  placeBetFromHouseBalance: (amount: string, targetId: string, userAddress: string, cellId?: string, metadata?: { priceTop?: number; priceBottom?: number; endTime?: number }) => Promise<{ betId: string; remainingBalance: number; bet: ActiveBet } | void>;
+  updatePrice: (price: number, asset?: AssetType) => void;
+  updateAllPrices: (prices: Record<string, number>) => void;
+  startGlobalPriceFeed: (updateAllPrices: (prices: Record<string, number>) => void) => (() => void);
+
+
   addActiveBet: (bet: ActiveBet) => void;
   resolveBet: (betId: string, won: boolean, payout: number) => void;
+  clearLastResult: () => void;
   settleRound: (betId: string) => Promise<void>;
-  updatePrice: (price: number) => void;
   setActiveRound: (round: ActiveRound | null) => void;
   loadTargetCells: () => Promise<void>;
   clearError: () => void;
+
+
+  // Blitz Round Actions
+  enableBlitzAccess: () => void;
+  revokeBlitzAccess: () => void;
+  updateBlitzTimer: () => void;
+  // Indicators Actions
+  toggleIndicator: (indicatorId: string) => void;
+  setIsIndicatorsOpen: (isOpen: boolean) => void;
+  setIsTourOpen: (isOpen: boolean) => void;
 }
+
+
 
 // Maximum price history points (5 minutes at 1 second intervals)
 const MAX_PRICE_HISTORY = 300;
@@ -64,35 +124,136 @@ const DEFAULT_TARGET_CELLS: TargetCell[] = [
  * Create game slice for Zustand store
  * Handles betting, round management, and price updates
  */
-export const createGameSlice: StateCreator<GameState> = (set, get) => ({
+export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
   // Initial state
-  selectedAsset: 'BTC',
+  gameMode: 'classic', // Default to classic mode
+  selectedAsset: 'ETH',
   currentPrice: 0,
   priceHistory: [],
+  assetPrices: {},
+  assetHistories: {},
+  rawAssetPrices: {},
+
   activeRound: null,
-  activeBets: [], // Multiple concurrent bets
+  activeBets: [],
+  settledBets: [],
   targetCells: DEFAULT_TARGET_CELLS,
   isPlacingBet: false,
   isSettling: false,
+  lastResult: null,
   error: null,
+  timeframeSeconds: 30, // Default for binomo
+  activeTab: 'bet',
+  activeIndicators: {},
+  isIndicatorsOpen: false,
+  isTourOpen: false,
+
+  // Blitz Initial State
+  isBlitzActive: false,
+  blitzEndTime: null,
+  nextBlitzTime: (() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('binomo_blitz_next');
+      if (stored) {
+        const t = parseInt(stored, 10);
+        if (t > Date.now()) return t;
+      }
+      const next = Date.now() + 2 * 60 * 1000;
+      localStorage.setItem('binomo_blitz_next', next.toString());
+      return next;
+    }
+    return Date.now() + 2 * 60 * 1000;
+  })(),
+  hasBlitzAccess: false,
+  blitzMultiplier: 2.0,
+
+  /**
+   * Set game mode (binomo or box)
+   */
+  setGameMode: (mode: GameMode) => {
+    set({
+      gameMode: mode,
+      lastResult: null,
+    });
+
+  },
+
+  /**
+   * Set UI active tab
+   */
+  setActiveTab: (tab: 'bet' | 'wallet' | 'blitz') => {
+    set({ activeTab: tab });
+  },
+
+  /**
+   * Toggle a technical indicator
+   */
+  toggleIndicator: (indicatorId: string) => {
+    set((state: GameState) => ({
+      activeIndicators: {
+        ...state.activeIndicators,
+        [indicatorId]: !state.activeIndicators[indicatorId]
+      }
+    }));
+  },
+
+  /**
+   * Set indicators menu open state
+   */
+  setIsIndicatorsOpen: (isOpen: boolean) => {
+    set({ isIndicatorsOpen: isOpen });
+  },
+
+  setIsTourOpen: (isOpen: boolean) => {
+    set({ isTourOpen: isOpen });
+  },
+
+
+  /**
+   * Set timeframe for grid cells (box mode)
+   */
+  setTimeframeSeconds: (seconds: number) => {
+    const { gameMode, activeBets } = get();
+
+    /**
+     * In 'box' mode, the grid (columns/boundaries) is directly tied to timeframeSeconds.
+     * If there are active box bets, we MUST NOT allow changing the duration,
+     * as it would rebuild the grid and make existing bets visually/logically lost.
+     */
+    if (gameMode === 'box' && activeBets.some((bet: ActiveBet) => bet.mode === 'box')) {
+      return;
+    }
+
+    set((state: GameState) => ({
+      timeframeSeconds: seconds,
+      /**
+       * In 'classic' mode or when there are no box bets, we update timeframeSeconds.
+       * Classic bets are independent of the current selector (they have strikePrice/endTime),
+       * so we keep them active.
+       */
+      activeBets: state.activeBets,
+    }));
+  },
+
+
+
 
   /**
    * Set selected asset for price tracking
    */
   setSelectedAsset: (asset: AssetType) => {
-    const { selectedAsset: currentAsset } = get();
-    
-    // Only reset if actually changing asset
+    const { selectedAsset: currentAsset, assetHistories, assetPrices } = get();
+
     if (currentAsset !== asset) {
-      set({ 
+      set({
         selectedAsset: asset,
-        priceHistory: [], // Clear history when switching assets
-        currentPrice: 0,
-        activeBets: [], // Clear active bets when switching
+        priceHistory: assetHistories[asset] || [],
+        currentPrice: assetPrices[asset] || 0,
         activeRound: null
       });
     }
   },
+
 
   /**
    * Place a bet on a target cell
@@ -102,19 +263,20 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
    * @param targetId - ID of the target cell (1-8) OR dynamic grid target (e.g., "UP-2.50")
    */
   placeBet: async (amount: string, targetId: string) => {
-    throw new Error("placeBet is deprecated after Sui migration. Use placeBetFromHouseBalance instead.");
+    throw new Error("placeBet is deprecated after BNB migration. Use placeBetFromHouseBalance instead.");
   },
 
   /**
    * Place a bet using house balance (no wallet signature required)
    * Instant-resolution system: bet is placed on a specific cell, resolves when chart hits it
-   * @param amount - Bet amount in USDC tokens
+   * @param amount - Bet amount in BNB tokens
    * @param targetId - Dynamic grid target (e.g., "UP-2.50") containing direction and multiplier
    * @param userAddress - User's wallet address
    * @param cellId - Optional: The specific cell ID this bet is placed on
+   * @param metadata - Optional: Extra resolution info (price bounds, end time)
    */
-  placeBetFromHouseBalance: async (amount: string, targetId: string, userAddress: string, cellId?: string) => {
-    const { targetCells, currentPrice, addActiveBet } = get();
+  placeBetFromHouseBalance: async (amount: string, targetId: string, userAddress: string, cellId?: string, metadata?: { priceTop?: number; priceBottom?: number; endTime?: number }) => {
+    const { targetCells, currentPrice, addActiveBet, gameMode, timeframeSeconds, selectedAsset } = get();
 
     try {
       // Parse amount for validation
@@ -123,30 +285,30 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
         throw new Error("Invalid bet amount");
       }
 
-      // Ensure address starts with 0x
-      const formattedAddress = userAddress.startsWith('0x') ? userAddress : `0x${userAddress}`;
 
       let target: TargetCell;
       let direction: 'UP' | 'DOWN' = 'UP';
-      let multiplier = 1.5;
+      let multiplier = 1.9;
+      let durationSeconds = timeframeSeconds || 30;
 
-      // Check if this is a dynamic grid target (e.g., "UP-2.50" or "DOWN-1.80")
+      // Check if this is a dynamic grid target (e.g., "UP-1.9-30" or "DOWN-1.2-5")
       if (targetId.startsWith('UP-') || targetId.startsWith('DOWN-')) {
         const parts = targetId.split('-');
         direction = parts[0] as 'UP' | 'DOWN';
-        multiplier = parseFloat(parts[1]) || 1.5;
+        multiplier = parseFloat(parts[1]) || 1.9;
+        durationSeconds = parseInt(parts[2]) || durationSeconds;
 
         // Create dynamic target
         target = {
           id: targetId,
-          label: `${direction} x${multiplier}`,
+          label: `${direction} x${multiplier} (${durationSeconds}s)`,
           multiplier: multiplier,
           priceChange: direction === 'UP' ? 10 : -10,
           direction: direction
         };
       } else {
         // Find predefined target cell
-        const foundTarget = targetCells.find(cell => cell.id === targetId);
+        const foundTarget = targetCells.find((cell: TargetCell) => cell.id === targetId);
         if (!foundTarget) {
           throw new Error("Invalid target cell");
         }
@@ -155,10 +317,15 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
         multiplier = target.multiplier;
       }
 
-      // DEMO MODE: Skip API call for demo addresses
-      const isDemoMode = formattedAddress.startsWith('0xDEMO');
+      // DEMO MODE: Skip API call for demo mode
+      const { accountType, demoBalance, updateBalance: storeUpdateBalance } = get();
+      const isDemoMode = accountType === 'demo';
 
       if (isDemoMode) {
+        if (demoBalance < betAmount) {
+          throw new Error("Insufficient demo balance");
+        }
+
         set({ isPlacingBet: true, error: null });
 
         // Simulate bet placement without API
@@ -167,12 +334,27 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
         // Create active bet for tracking
         const activeBet: ActiveBet = {
           id: fakeBetId,
-          cellId: cellId || targetId,
+          mode: gameMode,
+          asset: selectedAsset, // Set current asset
           amount: betAmount,
           multiplier: multiplier,
           direction: direction,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          status: 'active',
+          ...(gameMode === 'classic' ? {
+            strikePrice: currentPrice,
+            endTime: Date.now() + (durationSeconds * 1000)
+          } : {
+            cellId: cellId || targetId,
+            priceTop: metadata?.priceTop,
+            priceBottom: metadata?.priceBottom,
+            endTime: metadata?.endTime
+          })
         };
+
+
+        // Update local demo balance immediately
+        storeUpdateBalance(betAmount, 'subtract');
 
         // Add to active bets
         addActiveBet(activeBet);
@@ -181,12 +363,18 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
 
         return {
           betId: fakeBetId,
-          remainingBalance: 1000 - betAmount, // Fake remaining balance
+          remainingBalance: demoBalance - betAmount,
           bet: activeBet
         };
       }
 
       set({ isPlacingBet: true, error: null });
+
+      // Get current network and selected currency from store (match balance API)
+      let network = (get() as any).network || 'BNB';
+      const selectedCurrency = (get() as any).selectedCurrency;
+      let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
+      if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
       // Call API endpoint to place bet from house balance
       const response = await fetch('/api/balance/bet', {
@@ -195,8 +383,9 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userAddress: formattedAddress,
+          userAddress: userAddress, // Use the provided address directly
           betAmount,
+          currency: currency,
           roundId: Date.now(),
           targetPrice: currentPrice,
           isOver: direction === 'UP',
@@ -205,7 +394,7 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
             id: 9, // Always use 9 for dynamic grid bets
             priceChange: target.priceChange,
             direction: direction,
-            timeframe: 30,
+            timeframe: durationSeconds,
           },
         }),
       });
@@ -217,18 +406,37 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
 
       const data = await response.json();
 
-      // Create active bet for tracking (instant-resolution system)
+      // Create ActiveBet object
       const activeBet: ActiveBet = {
         id: data.betId,
-        cellId: cellId || targetId,
+        mode: gameMode,
+        asset: selectedAsset, // Set current asset
         amount: betAmount,
         multiplier: multiplier,
         direction: direction,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        status: 'active',
+        network: network, // Save the network used (e.g. XLM, NEAR, BNB)
+        ...(gameMode === 'classic' ? {
+          strikePrice: currentPrice,
+          endTime: Date.now() + (durationSeconds * 1000)
+        } : {
+          cellId: cellId || targetId,
+          priceTop: metadata?.priceTop,
+          priceBottom: metadata?.priceBottom,
+          endTime: metadata?.endTime
+        })
       };
+
 
       // Add to active bets (multiple bets can be active simultaneously)
       addActiveBet(activeBet);
+
+      // Update house balance in store so UI reflects deduction immediately
+      const setBalance = (get() as any).setBalance;
+      if (typeof setBalance === 'function' && data.remainingBalance != null) {
+        setBalance(parseFloat(data.remainingBalance));
+      }
 
       set({
         isPlacingBet: false,
@@ -258,42 +466,122 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
    * @param betId - The unique bet ID to settle
    */
   settleRound: async (betId: string) => {
-    console.log('settleRound called but is deprecated after Sui migration');
+    console.log('settleRound called but is deprecated after BNB migration');
     set({ isSettling: false });
   },
 
   /**
-   * Update current price and add to history
-   * Maintains rolling 5-minute window of price data
-   * @param price - New price in USD
+   * Update all prices at once
    */
-  updatePrice: (price: number) => {
-    const { priceHistory, selectedAsset } = get();
-    const now = Date.now();
-
-    // Create new price point
-    const newPoint: PricePoint = {
-      timestamp: now,
-      price
-    };
-
-    // Add to history
-    const updatedHistory = [...priceHistory, newPoint];
-
-    // Maintain rolling 5-minute window
-    const fiveMinutesAgo = now - (5 * 60 * 1000);
-    const filteredHistory = updatedHistory.filter(
-      point => point.timestamp >= fiveMinutesAgo
-    );
-
-    // Limit to MAX_PRICE_HISTORY points
-    const trimmedHistory = filteredHistory.slice(-MAX_PRICE_HISTORY);
-
-    set({
-      currentPrice: price,
-      priceHistory: trimmedHistory
+  updateAllPrices: (prices: Record<string, number>) => {
+    const { updatePrice } = get();
+    Object.entries(prices).forEach(([asset, price]) => {
+      updatePrice(price, asset as AssetType);
     });
   },
+
+  /**
+   * Update current price and add to history
+   * @param price - New price in USD
+   * @param asset - The asset being updated
+   */
+  updatePrice: (price: number, asset?: AssetType) => {
+    const {
+      priceHistory, selectedAsset, assetPrices, rawAssetPrices,
+      activeBets, resolveBet, updateBalance, address, accountType, fetchBalance
+    } = get();
+    const currentSelectedAsset = (asset || selectedAsset) as AssetType;
+    const now = Date.now();
+
+    // VOLATILITY AMPLIFICATION ENGINE
+    // For stable assets (Forex/Stocks), we amplify the real Pyth delta to make them "game-ready"
+    const getVolatilityMultiplier = (a: AssetType) => {
+      // Forex pairs (Moderate boost for stability)
+      if (['EUR', 'GBP', 'JPY', 'AUD', 'CAD'].includes(a)) return 8.0;
+      // Stocks (Maintain at 8x)
+      if (['AAPL', 'GOOGL', 'AMZN', 'MSFT', 'NVDA', 'TSLA', 'META', 'NFLX'].includes(a)) return 8.0;
+      // Metals (Reduce to 2.5x for smoother movement)
+      if (['GOLD', 'SILVER'].includes(a)) return 2.5;
+      // Crypto (Natural volatility, no boost)
+      return 1.0;
+    };
+
+    const multiplier = getVolatilityMultiplier(currentSelectedAsset);
+    const lastRawPrice = rawAssetPrices[currentSelectedAsset] || price;
+    const rawDelta = price - lastRawPrice;
+
+    // Calculate amplified delta
+    let amplifiedDelta = rawDelta * multiplier;
+
+    // Add micro-jitter (0.0001% - 0.0003%) to make price "vibrate" even when Pyth is slow
+    const jitterSign = Math.random() > 0.5 ? 1 : -1;
+    const jitterAmount = price * (0.00001 + Math.random() * 0.00002) * jitterSign;
+    amplifiedDelta += jitterAmount;
+
+    // The new price to be used in the game state
+    // If it's the first time we see this asset, use raw price
+    const currentVirtualPrice = assetPrices[currentSelectedAsset] || price;
+    const finalPrice = currentVirtualPrice + amplifiedDelta;
+
+    // Update global asset prices
+    const updatedAssetPrices = { ...assetPrices, [currentSelectedAsset]: finalPrice };
+    const updatedRawPrices = { ...rawAssetPrices, [currentSelectedAsset]: price };
+
+    // Primary update for the selected chart asset
+    const newPoint: PricePoint = { timestamp: now, price: finalPrice };
+    const currentAssetHistory = get().assetHistories[currentSelectedAsset] || [];
+    const updatedHistory = [...currentAssetHistory, newPoint].slice(-MAX_PRICE_HISTORY);
+
+    const updatedAssetHistories = {
+      ...get().assetHistories,
+      [currentSelectedAsset]: updatedHistory
+    };
+
+    if (currentSelectedAsset === selectedAsset) {
+      set({
+        currentPrice: finalPrice,
+        priceHistory: updatedHistory,
+        assetPrices: updatedAssetPrices,
+        assetHistories: updatedAssetHistories,
+        rawAssetPrices: updatedRawPrices
+      });
+    } else {
+      set({
+        assetPrices: updatedAssetPrices,
+        assetHistories: updatedAssetHistories,
+        rawAssetPrices: updatedRawPrices
+      });
+    }
+
+    // RESOLUTION LOGIC: Check for expired bets for THIS specific asset
+    if (!activeBets) return;
+
+    activeBets.forEach((bet: ActiveBet) => {
+      // Resolve bet if: asset matches and status is active
+      const betAsset = bet.asset || 'BNB'; // Fallback
+      if (betAsset !== currentSelectedAsset || bet.status !== 'active') return;
+
+      // BINOMO (Classic) Logic
+      if (bet.mode === 'classic' && bet.endTime && bet.strikePrice !== undefined && now >= bet.endTime) {
+        let won = false;
+        if (bet.direction === 'UP') {
+          won = finalPrice > bet.strikePrice;
+        } else {
+          won = finalPrice < bet.strikePrice;
+        }
+
+        const payout = won ? bet.amount * bet.multiplier : 0;
+        resolveBet(bet.id, won, payout);
+      }
+      // BOX MODE Logic (Instant resolution if metadata present)
+      else if (bet.mode === 'box' && bet.endTime && bet.priceTop !== undefined && bet.priceBottom !== undefined && now >= bet.endTime) {
+        const won = finalPrice <= bet.priceTop && finalPrice >= bet.priceBottom;
+        const payout = won ? bet.amount * bet.multiplier : 0;
+        resolveBet(bet.id, won, payout);
+      }
+    });
+  },
+
 
   /**
    * Set active round (used by event listeners)
@@ -329,12 +617,122 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
    * @param payout - The payout amount if won
    */
   resolveBet: (betId: string, won: boolean, payout: number) => {
-    const { activeBets } = get();
-    // Remove the resolved bet from active bets
-    set({ activeBets: activeBets.filter(b => b.id !== betId) });
+    const { activeBets, settledBets, currentPrice, address, network, accountType, updateBalance, fetchBalance } = get();
+    const resolvedBet = activeBets.find((b: ActiveBet) => b.id === betId);
+
+    if (resolvedBet) {
+      const settledBet = { ...resolvedBet, status: 'settled' as const };
+      const now = Date.now();
+
+      // Play sound effects
+      if (won) playWinSound();
+      else playLoseSound();
+
+      const displayCurrency = (resolvedBet.network || network || 'BNB');
+      set({
+        activeBets: activeBets.filter((b: ActiveBet) => b.id !== betId),
+        settledBets: [settledBet, ...settledBets].slice(0, 50), // Keep last 50
+        lastResult: {
+          won,
+          amount: resolvedBet.amount,
+          payout,
+          timestamp: now,
+          asset: resolvedBet.asset,
+          cellId: resolvedBet.cellId,
+          currency: displayCurrency
+        }
+      });
+
+      // Handle Balance Update (displayCurrency already normalizes SOL -> ETH)
+      if (won) {
+        if (accountType === 'real' && address) {
+          fetch('/api/balance/win', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userAddress: address,
+              winAmount: payout,
+              currency: displayCurrency,
+              betId: resolvedBet.id
+            })
+          }).then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              const setBalance = (get() as any).setBalance;
+              if (typeof setBalance === 'function' && data.newBalance != null) {
+                setBalance(parseFloat(data.newBalance));
+              } else if (fetchBalance) {
+                fetchBalance(address);
+              }
+            } else if (fetchBalance) {
+              fetchBalance(address);
+            }
+          }).catch(() => {
+            if (fetchBalance) fetchBalance(address);
+          });
+        } else if (accountType === 'demo') {
+          updateBalance(payout, 'add');
+        }
+      } else if (accountType === 'real' && address) {
+        // Sync house balance after a loss (already deducted at bet placement)
+        if (fetchBalance) fetchBalance(address);
+      }
+
+      // Also add to persistent local history store
+      const anyGet = get() as any;
+      if (anyGet.addBet) {
+        anyGet.addBet({
+          id: resolvedBet.id,
+          timestamp: now,
+          amount: resolvedBet.amount.toString(),
+          won: won,
+          payout: payout.toString(),
+          startPrice: resolvedBet.strikePrice || 0,
+          endPrice: currentPrice,
+          actualChange: currentPrice - (resolvedBet.strikePrice || 0),
+          target: {
+            id: resolvedBet.cellId || 'classic',
+            label: resolvedBet.mode === 'classic' ? `${resolvedBet.direction} ${resolvedBet.multiplier}x` : `Box ${resolvedBet.multiplier}x`,
+            multiplier: resolvedBet.multiplier,
+            priceChange: 0,
+            direction: resolvedBet.direction
+          },
+          network: resolvedBet.network || network || 'BNB'
+        });
+      }
+
+      // Save to Supabase for persistent history & leaderboard (non-blocking)
+      if (address) {
+        fetch('/api/bets/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: resolvedBet.id,
+            walletAddress: address,
+            asset: resolvedBet.asset || 'ETH',
+            direction: resolvedBet.direction,
+            amount: resolvedBet.amount,
+            multiplier: resolvedBet.multiplier,
+            strikePrice: resolvedBet.strikePrice || 0,
+            endPrice: currentPrice,
+            payout: payout,
+            won: won,
+            mode: resolvedBet.mode,
+            network: resolvedBet.network || network || 'BNB',
+          })
+        }).catch(err => console.error('Failed to save bet to Supabase:', err));
+      }
+    }
 
     // Log resolution for debugging
     console.log(`Bet ${betId} resolved: ${won ? 'WON' : 'LOST'}, payout: ${payout}`);
+  },
+
+  /**
+   * Clear the last result notification
+   */
+  clearLastResult: () => {
+    set({ lastResult: null });
   },
 
   /**
@@ -342,86 +740,123 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
    */
   clearError: () => {
     set({ error: null });
+  },
+
+  // Blitz Actions
+  enableBlitzAccess: () => {
+    set({ hasBlitzAccess: true });
+  },
+
+  revokeBlitzAccess: () => {
+    set({ hasBlitzAccess: false });
+  },
+
+  updateBlitzTimer: () => {
+    const { isBlitzActive, blitzEndTime, nextBlitzTime } = get();
+    const now = Date.now();
+    const BLITZ_DURATION = 60 * 1000; // 1 minute
+    const BLITZ_INTERVAL = 2 * 60 * 1000; // 2 minutes between blitzes
+
+    if (isBlitzActive) {
+      if (blitzEndTime && now >= blitzEndTime) {
+        const newNextTime = now + BLITZ_INTERVAL;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('binomo_blitz_next', newNextTime.toString());
+        }
+        set({
+          isBlitzActive: false,
+          blitzEndTime: null,
+          nextBlitzTime: newNextTime,
+          hasBlitzAccess: false,
+        });
+      }
+    } else {
+      if (now >= nextBlitzTime) {
+        const newNextTime = now + BLITZ_INTERVAL + BLITZ_DURATION;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('binomo_blitz_next', newNextTime.toString());
+        }
+        set({
+          isBlitzActive: true,
+          blitzEndTime: now + BLITZ_DURATION,
+          nextBlitzTime: newNextTime,
+        });
+      }
+    }
+  },
+
+  /**
+   * Start global multi-asset price feed tracking
+   */
+  startGlobalPriceFeed: (updateAllPrices: (prices: Record<string, number>) => void) => {
+    return startGlobalPriceFeed(updateAllPrices);
   }
 });
 
+
+
 /**
- * Start price feed polling
- * Fetches real-time crypto price from Pyth Network every second
+ * Start global multi-asset price feed tracking
+ */
+export const startGlobalPriceFeed = (
+  updateAllPrices: (prices: Record<string, number>) => void
+): (() => void) => {
+  let stopFeedFn: (() => void) | null = null;
+  let isActive = true;
+
+  import('@/lib/utils/priceFeed').then(({ startMultiPythPriceFeed }) => {
+    if (!isActive) return;
+    stopFeedFn = startMultiPythPriceFeed((prices) => {
+      if (isActive) {
+        updateAllPrices(prices);
+      }
+    });
+  }).catch(err => {
+    console.error('Failed to start multi-asset price feed:', err);
+  });
+
+  return () => {
+    isActive = false;
+    if (stopFeedFn) stopFeedFn();
+  };
+};
+
+/**
+ * Start price feed polling (Legacy/Single Asset)
  * @param updatePrice - Function to update price in store
- * @param asset - Asset to track (BTC, SUI, SOL)
+ * @param asset - Asset to track
  * @returns Function to stop polling
  */
 export const startPriceFeed = (
-  updatePrice: (price: number) => void,
+  updatePrice: (price: number, asset?: AssetType) => void,
   asset: AssetType = 'BTC'
 ): (() => void) => {
-  // Clean up any existing feed first
+  // Clean up any existing single-asset feed first
   if ((window as any).__currentPriceFeed) {
-    console.log(`Stopping existing price feed before starting ${asset}`);
     (window as any).__currentPriceFeed.stop();
   }
 
   let stopFeedFn: (() => void) | null = null;
-  let isActive = true; // Flag to prevent updates after cleanup
+  let isActive = true;
 
-  // Store reference for cleanup
   (window as any).__currentPriceFeed = {
     asset,
     stop: () => {
       isActive = false;
-      if (stopFeedFn) {
-        stopFeedFn();
-        stopFeedFn = null;
-      }
+      if (stopFeedFn) stopFeedFn();
     }
   };
 
-  // Import Pyth price feed dynamically to avoid SSR issues
   import('@/lib/utils/priceFeed').then(({ startPythPriceFeed }) => {
-    // Don't start if already cleaned up
     if (!isActive) return;
-
-    const stopFeed = startPythPriceFeed((price, data) => {
-      // Only update if still active
-      if (isActive) {
-        updatePrice(price);
-        // Log price updates with confidence interval
-        console.log(`${asset} Price: ${price.toFixed(asset === 'SUI' ? 4 : 2)} ±${data.confidence.toFixed(asset === 'SUI' ? 4 : 2)}`);
-      }
+    stopFeedFn = startPythPriceFeed((price) => {
+      if (isActive) updatePrice(price, asset);
     }, asset);
-
-    stopFeedFn = stopFeed;
-  }).catch(error => {
-    console.error('Failed to start Pyth price feed:', error);
-
-    // Fallback to mock price feed for development
-    import('@/lib/utils/priceFeed').then(({ startMockPriceFeed }) => {
-      // Don't start if already cleaned up
-      if (!isActive) return;
-
-      const stopFeed = startMockPriceFeed((price) => {
-        // Only update if still active
-        if (isActive) {
-          updatePrice(price);
-        }
-      }, { asset });
-
-      stopFeedFn = stopFeed;
-    });
   });
 
-  // Return cleanup function
   return () => {
-    console.log(`Cleanup called for ${asset}`);
-    isActive = false; // Prevent any future updates
-    if (stopFeedFn) {
-      stopFeedFn();
-      stopFeedFn = null;
-    }
-    // Clear global reference if it's ours
-    if ((window as any).__currentPriceFeed?.asset === asset) {
-      delete (window as any).__currentPriceFeed;
-    }
+    isActive = false;
+    if (stopFeedFn) stopFeedFn();
   };
 };
+

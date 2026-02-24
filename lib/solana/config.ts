@@ -36,7 +36,15 @@ export function getSolanaConfig(): SolanaConfig {
             break;
     }
 
-    const rpcEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || clusterApiUrl(network);
+    const publicRpcs = [
+        'https://devnet-router.magicblock.app',
+        'https://solana-rpc.publicnode.com',
+        'https://api.mainnet-beta.solana.com',
+        'https://solana-mainnet.rpc.extrnode.com',
+        'https://rpc.ankr.com/solana',
+    ];
+
+    const rpcEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || publicRpcs[0];
     const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY_ADDRESS;
 
     // Validate required environment variables
