@@ -148,13 +148,13 @@ flowchart TD
     Start --> Box[Box Mode]
 
     Classic --> C1[Choose UP or DOWN]
-    C1 --> C2[Pick a short timeframe (5–60s)]
+    C1 --> C2["Pick a short timeframe 5-60s"]
     C2 --> C3[Stake amount from in-game balance]
     C3 --> C4[Round resolves vs oracle price]
 
     Box --> B1[Tap a target tile]
-    B1 --> B2[Higher risk tiles = higher multipliers]
-    B2 --> B3[If price path hits tile before expiry, you win]
+    B1 --> B2["Higher risk tiles = higher multipliers"]
+    B2 --> B3["If price path hits tile before expiry you win"]
 ```
 
 ---
