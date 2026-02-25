@@ -643,10 +643,15 @@ export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
         }
       });
 
-      // Handle Balance Update (displayCurrency already normalizes SOL -> ETH)
+      // Handle Balance Update
       if (won) {
-        if (accountType === 'real' && address) {
-          fetch('/api/balance/win', {
+        if (accountType === 'real') {
+          // Optimistically update in-memory house balance for real accounts
+          updateBalance(payout, 'add');
+
+          // Fire-and-forget backend sync for persistence
+          if (address) {
+            fetch('/api/balance/win', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -655,21 +660,13 @@ export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
               currency: displayCurrency,
               betId: resolvedBet.id
             })
-          }).then(async (res) => {
-            if (res.ok) {
-              const data = await res.json();
-              const setBalance = (get() as any).setBalance;
-              if (typeof setBalance === 'function' && data.newBalance != null) {
-                setBalance(parseFloat(data.newBalance));
-              } else if (fetchBalance) {
-                fetchBalance(address);
-              }
-            } else if (fetchBalance) {
-              fetchBalance(address);
-            }
-          }).catch(() => {
-            if (fetchBalance) fetchBalance(address);
-          });
+            }).then((res) => {
+              // Fallback to a fresh fetch if backend reports an error
+              if (!res.ok && fetchBalance) fetchBalance(address);
+            }).catch(() => {
+              if (fetchBalance) fetchBalance(address);
+            });
+          }
         } else if (accountType === 'demo') {
           updateBalance(payout, 'add');
         }

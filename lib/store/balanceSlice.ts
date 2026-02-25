@@ -47,11 +47,10 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    */
   fetchBalance: async (address: string) => {
     const { accountType } = get();
-    // Access network and currency from combined store if available
-    let network = (get() as any).network || 'BNB';
+    // Devnet-only: Solana is the primary network
+    let network = (get() as any).network || 'SOL';
     const selectedCurrency = (get() as any).selectedCurrency;
     let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
-    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
     if (address && (address.endsWith('.near') || address.endsWith('.testnet') || /^[0-9a-fA-F]{64}$/.test(address))) {
       currency = 'NEAR';
@@ -144,10 +143,9 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * @param txHash - Transaction hash for audit trail
    */
   depositFunds: async (address: string, amount: number, txHash: string) => {
-    let network = (get() as any).network || 'BNB';
+    let network = (get() as any).network || 'SOL';
     const selectedCurrency = (get() as any).selectedCurrency;
     let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
-    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
     // Override network for NEAR addresses
     if (address.endsWith('.near') || address.endsWith('.testnet') || /^[0-9a-fA-F]{64}$/.test(address)) {
@@ -204,10 +202,9 @@ export const createBalanceSlice: StateCreator<BalanceState> = (set, get) => ({
    * @param amount - Withdrawal amount
    */
   withdrawFunds: async (address: string, amount: number) => {
-    const network = (get() as any).network || 'BNB';
+    const network = (get() as any).network || 'SOL';
     const selectedCurrency = (get() as any).selectedCurrency;
     let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
-    if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
     try {
       set({ isLoading: true, error: null });
