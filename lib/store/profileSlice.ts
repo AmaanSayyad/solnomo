@@ -88,7 +88,7 @@ export const createProfileSlice: StateCreator<ProfileState> = (set, get) => ({
             const { data, error } = await supabase
                 .from('bet_history')
                 .select('*')
-                .eq('wallet_address', address.toLowerCase())
+                .ilike('wallet_address', address)
                 .eq('network', 'SOL')
                 .order('resolved_at', { ascending: false })
                 .limit(10);

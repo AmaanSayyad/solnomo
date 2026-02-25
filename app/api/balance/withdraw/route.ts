@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Get house balance and status from Supabase and validate
-    // For Solana, support both 'SOL' and 'ETH' (native asset is ETH)
     let resolvedCurrency = currency;
     let result = await supabase
       .from('user_balances')
@@ -51,21 +50,6 @@ export async function POST(request: NextRequest) {
 
     let userData = result.data;
     let userError = result.error;
-
-    if ((userError || !userData) && (currency === 'SOL' || currency === 'ETH')) {
-      const fallbackCurrency = currency === 'SOL' ? 'ETH' : 'SOL';
-      const fallback = await supabase
-        .from('user_balances')
-        .select('balance, status')
-        .eq('user_address', userAddress)
-        .eq('currency', fallbackCurrency)
-        .single();
-      if (!fallback.error && fallback.data) {
-        userData = fallback.data;
-        userError = null;
-        resolvedCurrency = fallbackCurrency;
-      }
-    }
 
     if (userError || !userData) {
       return NextResponse.json({ error: 'User record not found' }, { status: 404 });
@@ -90,8 +74,7 @@ export async function POST(request: NextRequest) {
     const feeAmount = amount * feePercent;
     const netWithdrawAmount = amount - feeAmount;
 
-    const displayCurrency = resolvedCurrency === 'ETH' ? 'SOL' : resolvedCurrency;
-    console.log(`Withdrawal Request: Total=${amount}, Fee=${feeAmount}, Net=${netWithdrawAmount}, Currency=${displayCurrency}`);
+    console.log(`Withdrawal Request: Total=${amount}, Fee=${feeAmount}, Net=${netWithdrawAmount}, Currency=${resolvedCurrency}`);
 
     // 3. Perform transfer from treasury (Solana native or SPL)
     let signature: string;

@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
             .from('bet_history')
             .upsert({
                 id,
-                wallet_address: walletAddress.toLowerCase(),
-                asset: asset || 'BNB',
+                wallet_address: walletAddress,
+                asset: asset || 'SOL',
                 direction: direction || 'UP',
                 amount: parseFloat(amount) || 0,
                 multiplier: parseFloat(multiplier) || 1.9,

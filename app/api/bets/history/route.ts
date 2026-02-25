@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabase
             .from('bet_history')
             .select('*')
-            .eq('wallet_address', wallet.toLowerCase())
+            .ilike('wallet_address', wallet)
             .eq('network', 'SOL')
             .order('resolved_at', { ascending: false })
             .limit(limit);

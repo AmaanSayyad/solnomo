@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -9,7 +9,15 @@ export const MiniHistory: React.FC = () => {
     const isIndicatorsOpen = useStore((state) => state.isIndicatorsOpen);
     const setIsIndicatorsOpen = useStore((state) => state.setIsIndicatorsOpen);
     const activeIndicators = useStore((state) => state.activeIndicators);
+    const address = useStore((state) => state.address);
+    const fetchHistory = useStore((state) => state.fetchHistory);
     const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        if (address) {
+            fetchHistory(address);
+        }
+    }, [address, fetchHistory]);
 
     // Show only last 10 bets
     const recentBets = bets.slice(0, 10);

@@ -104,9 +104,8 @@ export async function POST(request: NextRequest) {
 
     // Check if the procedure reported an error
     if (!result.success) {
-      // Return specific error message for insufficient balance
       if (result.error === 'Insufficient balance') {
-        const readableCurrency = (currency === 'ETH') ? 'SOL' : currency;
+        const readableCurrency = currency;
         return NextResponse.json(
           { error: `Insufficient house balance. Please deposit more ${readableCurrency}.` },
           { status: 400 }

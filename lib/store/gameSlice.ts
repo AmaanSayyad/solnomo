@@ -127,7 +127,7 @@ const DEFAULT_TARGET_CELLS: TargetCell[] = [
 export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
   // Initial state
   gameMode: 'classic', // Default to classic mode
-  selectedAsset: 'ETH',
+  selectedAsset: 'SOL',
   currentPrice: 0,
   priceHistory: [],
   assetPrices: {},
@@ -705,7 +705,7 @@ export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
           body: JSON.stringify({
             id: resolvedBet.id,
             walletAddress: address,
-            asset: resolvedBet.asset || 'ETH',
+            asset: resolvedBet.asset || 'SOL',
             direction: resolvedBet.direction,
             amount: resolvedBet.amount,
             multiplier: resolvedBet.multiplier,
