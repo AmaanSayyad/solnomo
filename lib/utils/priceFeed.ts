@@ -217,7 +217,7 @@ export class MockPriceFeed {
 
   setAsset(asset: AssetType): void {
     this.asset = asset;
-    const defaults: Record<string, number> = { BTC: 50000, BNB: 600, BYNOMO: 0.1 };
+    const defaults: Record<string, number> = { BTC: 50000, BNB: 600, SOL: 20 };
     this.basePrice = defaults[asset] || 1;
   }
 

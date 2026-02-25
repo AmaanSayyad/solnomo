@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { DepositModal } from './DepositModal';
@@ -24,17 +24,17 @@ import { useToast } from '@/lib/hooks/useToast';
  * - Format balance to 4 decimal places
  */
 export const BalanceDisplay: React.FC = () => {
-  const houseBalance = useOverflowStore(state => state.houseBalance);
-  const demoBalance = useOverflowStore(state => state.demoBalance);
-  const accountType = useOverflowStore(state => state.accountType);
-  const network = useOverflowStore(state => state.network);
-  const selectedCurrency = useOverflowStore(state => state.selectedCurrency);
-  const setSelectedCurrency = useOverflowStore(state => state.setSelectedCurrency);
-  const toggleAccountType = useOverflowStore(state => state.toggleAccountType);
-  const isLoading = useOverflowStore(state => state.isLoading);
-  const address = useOverflowStore(state => state.address);
-  const fetchBalance = useOverflowStore(state => state.fetchBalance);
-  const updateBalance = useOverflowStore(state => state.updateBalance);
+  const houseBalance = useSolnomoStore(state => state.houseBalance);
+  const demoBalance = useSolnomoStore(state => state.demoBalance);
+  const accountType = useSolnomoStore(state => state.accountType);
+  const network = useSolnomoStore(state => state.network);
+  const selectedCurrency = useSolnomoStore(state => state.selectedCurrency);
+  const setSelectedCurrency = useSolnomoStore(state => state.setSelectedCurrency);
+  const toggleAccountType = useSolnomoStore(state => state.toggleAccountType);
+  const isLoading = useSolnomoStore(state => state.isLoading);
+  const address = useSolnomoStore(state => state.address);
+  const fetchBalance = useSolnomoStore(state => state.fetchBalance);
+  const updateBalance = useSolnomoStore(state => state.updateBalance);
   const toast = useToast();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -42,8 +42,8 @@ export const BalanceDisplay: React.FC = () => {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
   // Actions from other slices (using the unified store)
-  const setAddress = useOverflowStore(state => state.setAddress);
-  const setIsConnected = useOverflowStore(state => state.setIsConnected);
+  const setAddress = useSolnomoStore(state => state.setAddress);
+  const setIsConnected = useSolnomoStore(state => state.setIsConnected);
 
   /**
    * Exit demo mode and reset demo credentials
@@ -111,14 +111,12 @@ export const BalanceDisplay: React.FC = () => {
   const formattedBalance = activeBalance.toFixed(4);
 
   // Current symbol for display
-  const currentSymbol = network === 'SUI' ? 'USDC'
-    : (network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM'
-      ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB');
+  const currentSymbol = 'SOL';
 
   return (
     <>
       <div className="bg-black/30 rounded-xl border border-white/5 overflow-hidden">
-        {/* Secret Demo Header - Only visible when activated via BYNOMO logo click */}
+        {/* Secret Demo Header - Only visible when activated via Solnomo logo click */}
         {accountType === 'demo' && (
           <div className="flex bg-yellow-500/10 p-1 border-b border-yellow-500/20 items-center justify-between px-3">
             <span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">
@@ -142,7 +140,7 @@ export const BalanceDisplay: React.FC = () => {
             </h3>
 
             <div className="flex items-center gap-2">
-              {/* Solana Currency Toggle */}
+              {/* Solana Currency (single-asset for game rounds) */}
               {network === 'SOL' && accountType === 'real' && (
                 <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
                   <button
@@ -150,24 +148,9 @@ export const BalanceDisplay: React.FC = () => {
                       setSelectedCurrency('SOL');
                       setTimeout(() => fetchBalance(address!), 100);
                     }}
-                    className={`px-2 py-0.5 rounded text-[8px] font-black uppercase transition-all ${(!selectedCurrency || selectedCurrency === 'SOL')
-                      ? 'bg-purple-500 text-white shadow-lg'
-                      : 'text-white/40 hover:text-white/60'
-                      }`}
+                    className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-purple-500 text-white shadow-lg"
                   >
                     SOL
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedCurrency('BYNOMO');
-                      setTimeout(() => fetchBalance(address!), 100);
-                    }}
-                    className={`px-2 py-0.5 rounded text-[8px] font-black uppercase transition-all ${selectedCurrency === 'BYNOMO'
-                      ? 'bg-purple-500 text-white shadow-lg'
-                      : 'text-white/40 hover:text-white/60'
-                      }`}
-                  >
-                    BYNOMO
                   </button>
                 </div>
               )}
@@ -206,9 +189,9 @@ export const BalanceDisplay: React.FC = () => {
             <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5 font-mono">
               Available Credits
             </p>
-            {selectedCurrency === 'BYNOMO' && network === 'SOL' && (
+            {selectedCurrency === 'SOL' && network === 'SOL' && (
               <p className="text-[8.5px] text-purple-400/70 font-mono mb-2 tracking-tighter break-all">
-                Token: Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump
+                Network: Solana (MagicBlock router)
               </p>
             )}
 
@@ -221,15 +204,7 @@ export const BalanceDisplay: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1">
                   <img
-                    src={
-                      network === 'SUI' ? '/logos/sui-logo.png' :
-                        (network === 'SOL' && selectedCurrency === 'BYNOMO') ? '/overflowlogo.png' :
-                          network === 'SOL' ? '/logos/solana-sol-logo.png' :
-                            network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
-                              network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
-                                network === 'NEAR' ? '/logos/near-logo.svg' :
-                                  '/logos/bnb-bnb-logo.png'
-                    }
+                    src="/logos/solana-sol-logo.png"
                     alt={currentSymbol}
                     className="w-4 h-4 object-contain"
                   />

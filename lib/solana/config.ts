@@ -1,11 +1,10 @@
 /**
  * Solana Network Configuration
- * 
- * This module provides centralized configuration for Solana blockchain integration.
+ *
+ * This app runs on Solana devnet only.
  */
 
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { clusterApiUrl } from '@solana/web3.js';
 
 export interface SolanaConfig {
     network: WalletAdapterNetwork;
@@ -14,34 +13,24 @@ export interface SolanaConfig {
 }
 
 /**
- * Get Solana configuration from environment variables
- * 
- * @throws {Error} If required environment variables are missing
- * @returns {SolanaConfig} The Solana configuration object
+ * Get Solana configuration from environment variables.
+ * App is devnet-only; mainnet-beta is not supported.
  */
 export function getSolanaConfig(): SolanaConfig {
-    const networkStr = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'testnet';
-    let network: WalletAdapterNetwork;
-
-    switch (networkStr) {
-        case 'mainnet-beta':
-            network = WalletAdapterNetwork.Mainnet;
-            break;
-        case 'devnet':
-            network = WalletAdapterNetwork.Devnet;
-            break;
-        case 'testnet':
-        default:
-            network = WalletAdapterNetwork.Testnet;
-            break;
-    }
+    const networkStr = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+    const network =
+        networkStr === 'devnet'
+            ? WalletAdapterNetwork.Devnet
+            : networkStr === 'mainnet-beta'
+              ? WalletAdapterNetwork.Mainnet
+              : WalletAdapterNetwork.Devnet;
 
     const publicRpcs = [
         'https://devnet-router.magicblock.app',
-        'https://solana-rpc.publicnode.com',
-        'https://api.mainnet-beta.solana.com',
-        'https://solana-mainnet.rpc.extrnode.com',
-        'https://rpc.ankr.com/solana',
+        'https://api.devnet.solana.com',
+        'https://solana-devnet.rpc.extrnode.com',
+        'https://rpc.ankr.com/solana_devnet',
+        'https://solana-devnet.publicnode.com',
     ];
 
     const rpcEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || publicRpcs[0];

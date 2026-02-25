@@ -144,17 +144,9 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       } else if (network === 'SOL') {
         if (!solanaPublicKey) throw new Error('Solana wallet not connected');
 
-        const { buildDepositTransaction, buildTokenDepositTransaction, getSolanaConnection } = await import('@/lib/solana/client');
+        const { buildDepositTransaction, getSolanaConnection } = await import('@/lib/solana/client');
         const connection = getSolanaConnection();
-        const selectedCurrency = useOverflowStore.getState().selectedCurrency;
-
-        let transaction;
-        if (selectedCurrency === 'BYNOMO') {
-          const BYNOMO_MINT = 'Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump';
-          transaction = await buildTokenDepositTransaction(depositAmount, address, BYNOMO_MINT);
-        } else {
-          transaction = await buildDepositTransaction(depositAmount, address);
-        }
+        const transaction = await buildDepositTransaction(depositAmount, address);
 
         toast.info('Please confirm the transaction in your Solana wallet...');
 
@@ -300,12 +292,11 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             <img
               src={
                 network === 'SUI' ? '/logos/sui-logo.png' :
-                  (network === 'SOL' && selectedCurrency === 'BYNOMO') ? '/overflowlogo.png' :
-                    network === 'SOL' ? '/logos/solana-sol-logo.png' :
-                      network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
-                        network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
-                          network === 'NEAR' ? '/logos/near-logo.svg' :
-                            '/logos/bnb-bnb-logo.png'
+                  network === 'SOL' ? '/logos/solana-sol-logo.png' :
+                    network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
+                      network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
+                        network === 'NEAR' ? '/logos/near-logo.svg' :
+                          '/logos/bnb-bnb-logo.png'
               }
               alt={currencySymbol}
               className="w-5 h-5 object-contain"

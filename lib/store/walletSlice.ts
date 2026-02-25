@@ -109,16 +109,8 @@ export const createWalletSlice: StateCreator<WalletState> = (set, get) => ({
         const bal = await getARBBalance(address);
         set({ walletBalance: bal });
       } else if (network === 'SOL') {
-        const { getSOLBalance, getTokenBalance } = await import('@/lib/solana/client');
-        const currency = get().selectedCurrency || 'SOL';
-        let bal = 0;
-        if (currency === 'SOL') {
-          bal = await getSOLBalance(address);
-        } else if (currency === 'BYNOMO') {
-          // Solnomo Token on Solana
-          const BYNOMO_MINT = 'Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump';
-          bal = await getTokenBalance(address, BYNOMO_MINT);
-        }
+        const { getSOLBalance } = await import('@/lib/solana/client');
+        const bal = await getSOLBalance(address);
         set({ walletBalance: bal });
       } else if (network === 'SUI') {
         const { getUSDCBalance } = await import('@/lib/sui/client');

@@ -1,5 +1,5 @@
 /**
- * Bet-related type definitions for Overflow
+ * Bet-related type definitions for Solnomo
  */
 
 import { TargetCell } from './game';

@@ -103,15 +103,13 @@ export async function getSOLBalance(address: string): Promise<number> {
     const cleanAddress = address.trim();
     const config = getSolanaConfig();
 
-    // Comprehensive list of reliable public providers
+    // Devnet-only: reliable public devnet RPCs
     const publicRpcs = [
         config.rpcEndpoint,
-        'https://solana-rpc.publicnode.com',
-        'https://rpc.ankr.com/solana',
-        'https://api.mainnet-beta.solana.com',
-        'https://solana-mainnet.rpc.extrnode.com',
-        'https://solana.api.onfinality.io/public',
-        'https://mainnet.helius-rpc.com/?api-key=dummy-key'
+        'https://api.devnet.solana.com',
+        'https://solana-devnet.rpc.extrnode.com',
+        'https://rpc.ankr.com/solana_devnet',
+        'https://solana-devnet.publicnode.com',
     ].filter((value, index, self) => value && self.indexOf(value) === index);
 
     for (const rpc of publicRpcs) {

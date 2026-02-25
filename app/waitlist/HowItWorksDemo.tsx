@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Assets / Icons ---
-// Reused from previous code
+// Solana-only for MagicBlock gaming track
 const CHAINS = [
-    { name: 'Solana', id: 'SOL', color: '#28A0F0', logo: '/arbitrum-arb-logo.png' },
+    { name: 'Solana', id: 'SOL', color: '#28A0F0', logo: '/logos/solana-sol-logo.png' },
 ];
 
 export default function HowItWorksDemo() {
@@ -14,23 +14,23 @@ export default function HowItWorksDemo() {
 
     const features = [
         {
-            title: "Multi-Chain Access",
-            desc: "Connect instantly with Solana. No bridging required.",
+            title: "Solana + MagicBlock",
+            desc: "Connect a Solana wallet and route gameplay through MagicBlock Ephemeral Rollups for sub-50ms rounds.",
             component: <ChainSelectVisual />
         },
         {
-            title: "Predict Direction",
-            desc: "Choose UP or DOWN. Profit from every market movement in 30-second rounds.",
+            title: "Pick Your Play",
+            desc: "Choose UP or DOWN in fast 30-second rounds. Focus on the game loop, not order books.",
             component: <ClassicModeVisual />
         },
         {
             title: "Target Multipliers",
-            desc: "Use Box Mode to select specific price targets for amplified returns up to 10x.",
+            desc: "Use Box Mode to tap high-risk tiles and unlock higher multipliers as part of the game.",
             component: <BoxModeVisual />
         },
         {
             title: "Instant Settlement",
-            desc: "Wins are settled directly to your house balance. Claim to wallet instantly.",
+            desc: "Rounds resolve against oracle prices and update your in-game balance instantly on Solana.",
             component: <SettlementVisual />
         }
     ];
@@ -112,9 +112,9 @@ export default function HowItWorksDemo() {
 
                 {/* Common Header UI (Static decoration) */}
                 <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 border-b border-white/5 bg-black/20 backdrop-blur-sm z-30 pointer-events-none">
-                    <div className="text-xl font-black tracking-tighter text-white" style={{ fontFamily: 'var(--font-orbitron)' }}>BYNOMO</div>
+                    <div className="text-xl font-black tracking-tighter text-white" style={{ fontFamily: 'var(--font-orbitron)' }}>SOLNOMO</div>
                     <div className="flex gap-3">
-                        <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-bold text-amber-500 uppercase">Mainnet</div>
+                        <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-bold text-amber-500 uppercase">Devnet</div>
                         <div className={`px-3 py-1 border border-white/10 rounded-lg text-xs font-mono text-white flex items-center gap-2 transition-colors ${activeFeature === 0 ? 'bg-purple-500/20 border-purple-500/50' : 'bg-[#15151A]'}`}>
                             <div className={`w-2 h-2 rounded-full ${activeFeature === 0 ? 'bg-purple-400 animate-ping' : 'bg-green-500'}`} />
                             {activeFeature === 0 ? 'Connecting...' : 'Connected'}

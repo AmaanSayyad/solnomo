@@ -11,23 +11,23 @@ import './waitlist.css';
 const steps = [
     {
         id: "01",
-        title: "Hybrid Custody",
-        desc: "Solana performance with non-custodial security. SOLNOMO connects your wallet to a high-speed house balance for instant execution without gas lag."
+        title: "Onchain Game Vault",
+        desc: "Solana-native, non-custodial balances. Solnomo connects your wallet to a high-speed in-game vault for instant rounds without gas lag."
     },
     {
         id: "02",
-        title: "Multi-Asset Feed",
-        desc: "Trade more than just crypto. Predict millisecond movements on Bitcoin, ETH, Gold, and Tech giants like NVDA and TSLA via Pyth Fixed Oracles."
+        title: "Oracle-Powered Rounds",
+        desc: "Play on top of Pyth oracle feeds. Each round resolves against verifiable prices so outcomes are transparent and onchain."
     },
     {
         id: "03",
-        title: "Blitz Protocol",
-        desc: "Activate high-frequency Blitz Rounds. Experience amplified multipliers up to 10x and 30-second settlement windows for maximum capital efficiency."
+        title: "Blitz Game Loops",
+        desc: "Short, high-intensity rounds with multipliers up to 10x. Built for fast game loops instead of heavy trading terminals."
     },
     {
         id: "04",
-        title: "Tiered Autonomy",
-        desc: "Climb from Standard to VIP. Unlock exclusive indicators, lower fee brackets, and priority treasury withdrawals as an early decentralized trader."
+        title: "Skill-Based Progression",
+        desc: "Climb from Standard to VIP player tiers. Unlock cosmetic flex, access to special rounds, and priority rewards as an early Solnomo gamer."
     }
 ];
 
@@ -66,24 +66,24 @@ const testimonials = [
 
 const faqs = [
     {
-        question: "How does the House Balance work?",
-        answer: "To ensure millisecond execution, SOLNOMO uses a hybrid house balance system. You deposit ETH into a non-custodial treasury on Solana, which is then reflected in your game balance for instant off-chain betting."
+        question: "How does the in-game balance work?",
+        answer: "To ensure millisecond execution, Solnomo uses a hybrid in-game balance system. You deposit SOL or supported Solana assets into a non-custodial treasury, which is then reflected in your game balance for instant rounds."
     },
     {
-        question: "What assets can I trade?",
-        answer: "SOLNOMO supports a wide range of assets including major cryptos (BTC, ETH, SOL), precious metals (Gold, Silver), and top-tier stocks (AAPL, NVDA, TSLA) through Pyth price feeds."
+        question: "What assets can I play on?",
+        answer: "Solnomo can plug into any Pyth-supported feed on Solana, including major crypto pairs and more. For the Graveyard Hackathon, the focus is showcasing fast, oracle-resolved gameplay rather than a full trading terminal."
     },
     {
         question: "What are Blitz Rounds?",
-        answer: "Blitz Rounds are premium high-frequency trading sessions. They offer significantly higher multipliers (up to 10x) and ultra-fast 30-second round intervals for advanced traders."
+        answer: "Blitz Rounds are high-frequency game sessions. They offer higher multipliers (up to 10x) and ultra-fast 30-second windows tuned for gameplay, not leverage farming."
     },
     {
         question: "How do I upgrade to VIP tier?",
-        answer: "Tiers (Standard, Gold, VIP) are determined by your trading volume and early participation. VIPs enjoy exclusive technical indicators, reduced withdrawal fees, and priority treasury access."
+        answer: "Tiers (Standard, Gold, VIP) are determined by your activity and early participation. VIPs enjoy special round types, cosmetic rewards, and priority access to new MagicBlock-powered features."
     },
     {
         question: "Are my funds safe?",
-        answer: "Yes. All deposits are held in a secure treasury wallet verified on-chain. Withdrawals are processed through the SOLNOMO protocol, ensuring you maintain ultimate control over your assets."
+        answer: "Yes. All deposits are held in a Solana treasury wallet verified on-chain. Withdrawals are processed through the Solnomo protocol, so you always retain control of your assets."
     }
 ];
 
@@ -283,7 +283,7 @@ export default function WaitlistPage() {
                             See It In Action
                         </h2>
                         <p className="text-white/40 max-w-2xl mx-auto text-lg leading-relaxed">
-                            Connect any wallet. Select your network. Execute trades with millisecond precision.
+                            Connect your Solana wallet. Pick a play. Experience MagicBlock-powered rounds with millisecond precision.
                         </p>
                     </div>
 
@@ -300,8 +300,8 @@ export default function WaitlistPage() {
             <section>
                 <div className="section-content">
                     <div className="text-center mb-24">
-                        <h2 className="text-5xl font-black tracking-tighter mb-6">Trusted by Traders</h2>
-                        <p className="text-white/40 text-lg font-medium">Join the next generation of binary options enthusiasts.</p>
+                        <h2 className="text-5xl font-black tracking-tighter mb-6">Loved by onchain gamers</h2>
+                        <p className="text-white/40 text-lg font-medium">Join the next generation of Solana-native real-time gaming experiments.</p>
                     </div>
                 </div>
 
@@ -380,7 +380,7 @@ export default function WaitlistPage() {
                     className="cta-card"
                 >
                     <div className="cta-glow" />
-                    <h2 className="cta-title">Ready to trade the future with decentralized precision?</h2>
+                    <h2 className="cta-title">Ready to play with Solana-speed onchain?</h2>
                     <button className="cta-button" onClick={scrollToTop}>
                         Start now
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translateY(1px)' }}>

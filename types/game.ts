@@ -1,5 +1,5 @@
 /**
- * Game-related type definitions for Overflow
+ * Game-related type definitions for Solnomo
  */
 
 export type Direction = 'UP' | 'DOWN';

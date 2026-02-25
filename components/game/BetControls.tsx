@@ -38,30 +38,22 @@ export const BetControls: React.FC<BetControlsProps> = ({
       case 'XTZ': return 'XTZ';
       case 'NEAR': return 'NEAR';
       case 'SUI': return 'USDC';
-      case 'SOL': {
-        const state = useStore.getState() as any;
-        return state.selectedCurrency || 'SOL';
-      }
-      case 'SOL': return 'ETH';
+      case 'SOL': return 'SOL';
       default: return 'BNB';
     }
   }, [network]);
 
   const currencyLogo = useMemo(() => {
-    if (network === 'SOL' && currencySymbol === 'BYNOMO') {
-      return '/overflowlogo.png';
-    }
     switch (network) {
       case 'SUI': return '/logos/usdc.png';
       case 'SOL': return '/logos/solana-sol-logo.png';
-      case 'SOL': return '/logos/ethereum-eth-logo.png';
       case 'BNB': return '/logos/bnb-bnb-logo.png';
       case 'NEAR': return '/logos/near-logo.svg';
       case 'XTZ': return '/logos/tezos-xtz-logo.png';
       case 'XLM': return '/logos/stellar-xlm-logo.png';
       default: return '/logos/ethereum-eth-logo.png';
     }
-  }, [network, currencySymbol]);
+  }, [network]);
 
   const [error, setError] = useState<string | null>(null);
 

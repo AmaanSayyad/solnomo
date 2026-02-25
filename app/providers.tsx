@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
@@ -42,7 +42,7 @@ function WalletSync() {
     fetchProfile,
     fetchBalance,
     preferredNetwork
-  } = useOverflowStore();
+  } = useSolnomoStore();
 
   // Main Sync Effect
   useEffect(() => {
@@ -110,27 +110,27 @@ function WalletSync() {
 
     // 4. Check Stellar - Logic is now handled by restoration effect above or manual connection
     if (preferredNetwork === 'XLM') {
-      if (useOverflowStore.getState().address && useOverflowStore.getState().network === 'XLM') {
+      if (useSolnomoStore.getState().address && useSolnomoStore.getState().network === 'XLM') {
         return;
       }
     }
 
     // 5. Check Tezos
     if (preferredNetwork === 'XTZ') {
-      if (useOverflowStore.getState().address && useOverflowStore.getState().network === 'XTZ') {
+      if (useSolnomoStore.getState().address && useSolnomoStore.getState().network === 'XTZ') {
         return;
       }
     }
 
     // 6. Check NEAR
     if (preferredNetwork === 'NEAR') {
-      if (useOverflowStore.getState().address && useOverflowStore.getState().network === 'NEAR') {
+      if (useSolnomoStore.getState().address && useSolnomoStore.getState().network === 'NEAR') {
         return;
       }
     }
 
     // 7. Cleanup/Sync Decision
-    const state = useOverflowStore.getState();
+    const state = useSolnomoStore.getState();
     const isDemoMode = state.accountType === 'demo';
     const hasSolana = solanaConnected && solanaPublicKey;
     const hasSui = !!suiAccount?.address;
@@ -201,7 +201,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     const initializeApp = async () => {
       try {
-        const { updateAllPrices, loadTargetCells, startGlobalPriceFeed } = useOverflowStore.getState();
+        const { updateAllPrices, loadTargetCells, startGlobalPriceFeed } = useSolnomoStore.getState();
 
         await loadTargetCells().catch(console.error);
         const stopPriceFeed = startGlobalPriceFeed(updateAllPrices);

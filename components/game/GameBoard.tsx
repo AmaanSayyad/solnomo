@@ -143,7 +143,7 @@ export const GameBoard: React.FC = () => {
 
         const rpcUrl = process.env.NEXT_PUBLIC_TEZOS_RPC_URL || 'https://rpc.tzkt.io/mainnet';
         const wallet = new BeaconWallet({
-          name: "BYNOMO",
+          name: "Solnomo",
           preferredNode: rpcUrl,
           network: { type: NetworkType.MAINNET, rpcUrl }
         } as any);
@@ -583,22 +583,6 @@ export const GameBoard: React.FC = () => {
                       <div className="bg-gradient-to-br from-purple-500/10 to-transparent rounded-xl p-4 border border-purple-500/20">
                         <div className="flex justify-between items-start mb-1">
                           <p className="text-gray-400 text-[10px] uppercase tracking-widest">Wallet Balance</p>
-                          {network === 'SOL' && (
-                            <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5">
-                              {['SOL', 'BYNOMO'].map(c => (
-                                <button
-                                  key={c}
-                                  onClick={() => setSelectedCurrency(c)}
-                                  className={`px-2 py-0.5 rounded-md text-[8px] font-black transition-all ${(selectedCurrency || 'SOL') === c
-                                    ? 'bg-purple-500 text-white shadow-lg'
-                                    : 'text-gray-500 hover:text-gray-300'
-                                    }`}
-                                >
-                                  {c}
-                                </button>
-                              ))}
-                            </div>
-                          )}
                         </div>
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-bold text-white">
@@ -606,11 +590,6 @@ export const GameBoard: React.FC = () => {
                           </span>
                           <span className="text-purple-400 text-sm font-medium">{currencySymbol}</span>
                         </div>
-                        {selectedCurrency === 'BYNOMO' && network === 'SOL' && (
-                          <p className="text-[8.5px] text-purple-400/70 font-mono mt-1 tracking-tighter break-all">
-                            Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump
-                          </p>
-                        )}
                       </div>
 
                       {/* Disconnect Button */}

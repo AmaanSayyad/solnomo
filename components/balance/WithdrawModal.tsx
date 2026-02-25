@@ -139,12 +139,11 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
             <img
               src={
                 network === 'SUI' ? '/logos/sui-logo.png' :
-                  (network === 'SOL' && selectedCurrency === 'BYNOMO') ? '/overflowlogo.png' :
-                    network === 'SOL' ? '/logos/solana-sol-logo.png' :
-                      network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
-                        network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
-                          network === 'NEAR' ? '/logos/near-logo.svg' :
-                            '/logos/bnb-bnb-logo.png'
+                  network === 'SOL' ? '/logos/solana-sol-logo.png' :
+                    network === 'XLM' ? '/logos/stellar-xlm-logo.png' :
+                      network === 'XTZ' ? '/logos/tezos-xtz-logo.png' :
+                        network === 'NEAR' ? '/logos/near-logo.svg' :
+                          '/logos/bnb-bnb-logo.png'
               }
               alt={currencySymbol}
               className="w-5 h-5 object-contain"

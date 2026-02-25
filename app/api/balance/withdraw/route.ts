@@ -96,14 +96,8 @@ export async function POST(request: NextRequest) {
     // 3. Perform transfer from treasury (Solana native or SPL)
     let signature: string;
     try {
-      if (resolvedCurrency === 'BYNOMO') {
-        const { transferTokenFromTreasury } = await import('@/lib/solana/backend-client');
-        const BYNOMO_MINT = 'Bi4NEEQhtrFdnoS9NjrXaWkQftXifh2t3RzQHSTQpump';
-        signature = await transferTokenFromTreasury(userAddress, netWithdrawAmount, BYNOMO_MINT);
-      } else {
-        const { transferSOLFromTreasury } = await import('@/lib/solana/backend-client');
-        signature = await transferSOLFromTreasury(userAddress, netWithdrawAmount);
-      }
+      const { transferSOLFromTreasury } = await import('@/lib/solana/backend-client');
+      signature = await transferSOLFromTreasury(userAddress, netWithdrawAmount);
     } catch (e: any) {
       console.error('Transfer failed:', e);
       return NextResponse.json({ error: `Withdrawal failed: ${e.message}` }, { status: 500 });

@@ -23,34 +23,34 @@ const orbitron = Orbitron({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://solnomo.fun'),
-  title: "Solnomo - Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
+  title: "Solnomo - Real-time Solana gaming on MagicBlock",
   description:
-    "The first Solana on-chain binary options trading dapp. Powered by Pyth Hermes price attestations, Supabase, and x402-style payments. Oracle-bound resolution, minimal trust.",
+    "Solnomo is a Solana-native, MagicBlock-powered onchain game built for millisecond rounds and instant settlement. Designed for the Solana Graveyard Hackathon MagicBlock gaming track.",
   keywords: [
-    "binary options",
-    "crypto trading",
-    "Pyth oracle",
     "Solana",
-    "SOL",
-    "Web3",
-    "prediction",
+    "onchain gaming",
+    "MagicBlock",
+    "ephemeral rollups",
+    "Pyth oracle",
+    "real-time game",
+    "Graveyard Hackathon",
   ],
   icons: {
-    icon: "/overflowlogo.ico",
-    shortcut: "/overflowlogo.ico",
-    apple: "/overflowlogo.ico",
+    icon: "/solnomo-logo.ico",
+    shortcut: "/solnomo-logo.ico",
+    apple: "/solnomo-logo.ico",
   },
   openGraph: {
-    title: "Solnomo — Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
+    title: "Solnomo — Real-time Solana gaming on MagicBlock",
     description:
-      "The first Solana on-chain binary options trading dapp. Powered by Pyth Hermes price attestations, Supabase, and x402-style payments. Oracle-bound resolution, minimal trust",
-    images: [{ url: '/overflowlogo.png', width: 512, height: 512, alt: 'Solnomo' }],
+      "Solnomo uses MagicBlock Ephemeral Rollups to deliver Web2-speed onchain gameplay on Solana with oracle-bound outcomes and instant in-game settlement.",
+    images: [{ url: '/solnomo-logo.png', width: 512, height: 512, alt: 'Solnomo' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Solnomo — Trade over 300+ Crypto, Stocks, Metals and Forex with 5s-1m time-charts",
-    description: "Trade binary options with oracle-bound resolution and minimal trust on Solana.",
-    images: ['/overflowlogo.png'],
+    title: "Solnomo — Real-time Solana gaming on MagicBlock",
+    description: "Play fast, oracle-resolved rounds on Solana with MagicBlock-powered performance.",
+    images: ['/solnomo-logo.png'],
   },
 };
 

@@ -18,13 +18,13 @@ import { ProfileState, createProfileSlice } from "./profileSlice";
 /**
  * Combined store type
  */
-export type OverflowStore = WalletState & GameState & HistoryState & BalanceState & ReferralState & ProfileState;
+export type SolnomoStore = WalletState & GameState & HistoryState & BalanceState & ReferralState & ProfileState;
 
 /**
  * Create the main Zustand store
  * Combines all slices into a single store
  */
-export const useOverflowStore = create<OverflowStore>()((...args) => ({
+export const useSolnomoStore = create<SolnomoStore>()((...args) => ({
   ...createWalletSlice(...args),
   ...createGameSlice(...args),
   ...createHistorySlice(...args),
@@ -39,12 +39,12 @@ export const useOverflowStore = create<OverflowStore>()((...args) => ({
  * Should be called once on app initialization
  */
 export const initializeStore = async (): Promise<void> => {
-  const store = useOverflowStore.getState();
+  const store = useSolnomoStore.getState();
 
   try {
     // Restore bet history from localStorage
     restoreBetHistory((bets) => {
-      useOverflowStore.setState({ bets });
+      useSolnomoStore.setState({ bets });
     });
 
     // Load target cells
@@ -59,7 +59,7 @@ export const initializeStore = async (): Promise<void> => {
     const stopPriceFeed = store.startGlobalPriceFeed(store.updateAllPrices);
 
     // Store cleanup function for later use
-    (window as any).__overflowCleanup = () => {
+    (window as any).__solnomoCleanup = () => {
       stopPriceFeed();
     };
 
@@ -76,33 +76,33 @@ export const initializeStore = async (): Promise<void> => {
  * Should be called when app is unmounted
  */
 export const cleanupStore = (): void => {
-  if ((window as any).__overflowCleanup) {
-    (window as any).__overflowCleanup();
-    delete (window as any).__overflowCleanup;
+  if ((window as any).__solnomoCleanup) {
+    (window as any).__solnomoCleanup();
+    delete (window as any).__solnomoCleanup;
   }
 };
 
 /**
  * Export individual selectors for optimized re-renders
  */
-export const useWalletAddress = () => useOverflowStore(state => state.address);
-export const useWalletBalance = () => useOverflowStore(state => state.walletBalance);
-export const useIsConnected = () => useOverflowStore(state => state.isConnected);
-export const useCurrentPrice = () => useOverflowStore(state => state.currentPrice);
-export const usePriceHistory = () => useOverflowStore(state => state.priceHistory);
-export const useActiveRound = () => useOverflowStore(state => state.activeRound);
-export const useTargetCells = () => useOverflowStore(state => state.targetCells);
-export const useBetHistory = () => useOverflowStore(state => state.bets);
-export const useIsPlacingBet = () => useOverflowStore(state => state.isPlacingBet);
-export const useIsSettling = () => useOverflowStore(state => state.isSettling);
-export const useHouseBalance = () => useOverflowStore(state => state.houseBalance);
-export const useIsLoadingBalance = () => useOverflowStore(state => state.isLoading);
-export const useUserTier = () => useOverflowStore(state => state.userTier);
+export const useWalletAddress = () => useSolnomoStore(state => state.address);
+export const useWalletBalance = () => useSolnomoStore(state => state.walletBalance);
+export const useIsConnected = () => useSolnomoStore(state => state.isConnected);
+export const useCurrentPrice = () => useSolnomoStore(state => state.currentPrice);
+export const usePriceHistory = () => useSolnomoStore(state => state.priceHistory);
+export const useActiveRound = () => useSolnomoStore(state => state.activeRound);
+export const useTargetCells = () => useSolnomoStore(state => state.targetCells);
+export const useBetHistory = () => useSolnomoStore(state => state.bets);
+export const useIsPlacingBet = () => useSolnomoStore(state => state.isPlacingBet);
+export const useIsSettling = () => useSolnomoStore(state => state.isSettling);
+export const useHouseBalance = () => useSolnomoStore(state => state.houseBalance);
+export const useIsLoadingBalance = () => useSolnomoStore(state => state.isLoading);
+export const useUserTier = () => useSolnomoStore(state => state.userTier);
 
 /**
  * Export main store hook (alias for convenience)
  */
-export const useStore = useOverflowStore;
+export const useStore = useSolnomoStore;
 
 /**
  * Export actions
@@ -110,33 +110,33 @@ export const useStore = useOverflowStore;
  * Use direct store access (useOverflowStore(state => state.actionName)) instead.
  */
 export const useWalletActions = () => {
-  const connect = useOverflowStore(state => state.connect);
-  const disconnect = useOverflowStore(state => state.disconnect);
-  const refreshWalletBalance = useOverflowStore(state => state.refreshWalletBalance);
+  const connect = useSolnomoStore(state => state.connect);
+  const disconnect = useSolnomoStore(state => state.disconnect);
+  const refreshWalletBalance = useSolnomoStore(state => state.refreshWalletBalance);
   return { connect, disconnect, refreshWalletBalance };
 };
 
 export const useGameActions = () => {
-  const placeBet = useOverflowStore(state => state.placeBet);
-  const placeBetFromHouseBalance = useOverflowStore(state => state.placeBetFromHouseBalance);
-  const settleRound = useOverflowStore(state => state.settleRound);
-  const updatePrice = useOverflowStore(state => state.updatePrice);
+  const placeBet = useSolnomoStore(state => state.placeBet);
+  const placeBetFromHouseBalance = useSolnomoStore(state => state.placeBetFromHouseBalance);
+  const settleRound = useSolnomoStore(state => state.settleRound);
+  const updatePrice = useSolnomoStore(state => state.updatePrice);
   return { placeBet, placeBetFromHouseBalance, settleRound, updatePrice };
 };
 
 export const useHistoryActions = () => {
-  const fetchHistory = useOverflowStore(state => state.fetchHistory);
-  const addBet = useOverflowStore(state => state.addBet);
-  const clearHistory = useOverflowStore(state => state.clearHistory);
+  const fetchHistory = useSolnomoStore(state => state.fetchHistory);
+  const addBet = useSolnomoStore(state => state.addBet);
+  const clearHistory = useSolnomoStore(state => state.clearHistory);
   return { fetchHistory, addBet, clearHistory };
 };
 
 export const useBalanceActions = () => {
-  const fetchBalance = useOverflowStore(state => state.fetchBalance);
-  const setBalance = useOverflowStore(state => state.setBalance);
-  const updateBalance = useOverflowStore(state => state.updateBalance);
-  const depositFunds = useOverflowStore(state => state.depositFunds);
-  const withdrawFunds = useOverflowStore(state => state.withdrawFunds);
-  const clearError = useOverflowStore(state => state.clearError);
+  const fetchBalance = useSolnomoStore(state => state.fetchBalance);
+  const setBalance = useSolnomoStore(state => state.setBalance);
+  const updateBalance = useSolnomoStore(state => state.updateBalance);
+  const depositFunds = useSolnomoStore(state => state.depositFunds);
+  const withdrawFunds = useSolnomoStore(state => state.withdrawFunds);
+  const clearError = useSolnomoStore(state => state.clearError);
   return { fetchBalance, setBalance, updateBalance, depositFunds, withdrawFunds, clearError };
 };

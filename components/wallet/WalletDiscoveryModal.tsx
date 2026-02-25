@@ -93,7 +93,7 @@ export const WalletDiscoveryModal: React.FC<WalletDiscoveryModalProps> = ({ isOp
                                 <div className="relative flex-1">
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-white font-bold text-base tracking-tight">Solana</h3>
-                                        <span className="text-[8px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-bold uppercase">Mainnet</span>
+                                        <span className="text-[8px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-bold uppercase">Devnet</span>
                                     </div>
                                     <p className="text-gray-500 text-[11px] mt-0.5 font-medium">Phantom, Solflare, Backpack</p>
                                 </div>
