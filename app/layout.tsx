@@ -36,9 +36,9 @@ export const metadata: Metadata = {
     "Graveyard Hackathon",
   ],
   icons: {
-    icon: "/solnomo-logo.ico",
-    shortcut: "/solnomo-logo.ico",
-    apple: "/solnomo-logo.ico",
+    icon: "/overflowlogo.ico",
+    shortcut: "/overflowlogo.ico",
+    apple: "/overflowlogo.ico",
   },
   openGraph: {
     title: "Solnomo — Real-time Solana gaming on MagicBlock",

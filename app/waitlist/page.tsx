@@ -282,13 +282,8 @@ export default function WaitlistPage() {
                         <h2 className="text-4xl md:text-7xl font-black tracking-tighter text-white mb-6 uppercase" style={{ fontFamily: 'var(--font-orbitron)' }}>
                             Scale your <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/20">trading</span>
                         </h2>
-<<<<<<< Updated upstream
                         <p className="text-white/40 max-w-2xl mx-auto text-lg leading-relaxed">
                             Connect your Solana wallet. Pick a play. Experience MagicBlock-powered rounds with millisecond precision.
-=======
-                        <p className="text-white/30 max-w-2xl mx-auto text-sm font-bold uppercase tracking-widest leading-relaxed">
-                            A triple-layered protocol designed for speed, precision, and trustless settlement.
->>>>>>> Stashed changes
                         </p>
                     </div>
 
