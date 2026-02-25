@@ -21,6 +21,31 @@ Solnomo focuses on **fast game loops** instead of leverage and perps.
 
 ---
 
+## Market Opportunity
+
+| Metric | Value |
+|--------|--------|
+| **Binary options / prediction (TAM)** | $27.56B (2025) → ~$116B by 2034 (19.8% CAGR) |
+| **Crypto prediction markets** | $45B+ annual volume (Polymarket, Kalshi, on-chain) |
+| **Crypto derivatives volume** | $86T+ annually (2025) |
+| **Crypto users** | 590M+ worldwide |
+
+---
+
+## Competitive Landscape
+
+| Segment | Examples | Limitation vs Solnomo |
+|--------|----------|----------------------|
+| **Web2 binary options** | IQ Option, Quotex | Opaque pricing, regulatory issues, no on-chain settlement; users do not custody funds. |
+| **Crypto prediction markets** | Polymarket, Kalshi, Azuro | Event/outcome markets (e.g. "Will X happen?"), not sub-minute **price** binary options; resolution in hours or days. |
+| **Crypto derivatives (CEX)** | Binance Futures, Bybit, OKX | Leveraged perps and positions; not short-duration binary options (5s–1m) with oracle-bound resolution. |
+| **On-chain options / DeFi** | Dopex, Lyra, Premia | Standard options (calls/puts), complex UX; no simple "price up/down in 30s" binary product. |
+| **Solana devnet binary options / prediction** | — | No established on-chain binary options dApp on Solana devnet; Solnomo fills this gap. |
+
+**Solnomo's differentiation:** On-chain binary options on Solana devnet with sub-second oracle resolution (Pyth Hermes), house balance for instant bets, and dual modes (Classic + Box) in one treasury.
+
+---
+
 ## Tech Stack
 
 | Layer        | Technology |
