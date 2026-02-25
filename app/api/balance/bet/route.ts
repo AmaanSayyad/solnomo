@@ -33,13 +33,9 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body: BetRequest = await request.json();
-    let { userAddress, betAmount, currency = 'BNB', roundId, targetPrice, isOver, multiplier, targetCell } = body;
+    let { userAddress, betAmount, currency = 'SOL', roundId, targetPrice, isOver, multiplier, targetCell } = body;
 
-    // Normalize SOL requests to ETH for database compatibility
     const displayCurrency = currency;
-    if (currency === 'SOL') {
-      currency = 'ETH';
-    }
 
     // Validate required fields
     if (!userAddress || betAmount === undefined || betAmount === null) {

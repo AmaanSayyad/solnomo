@@ -371,10 +371,9 @@ export const createGameSlice: StateCreator<any> = (set: any, get: any) => ({
       set({ isPlacingBet: true, error: null });
 
       // Get current network and selected currency from store (match balance API)
-      let network = (get() as any).network || 'BNB';
+      let network = (get() as any).network || 'SOL';
       const selectedCurrency = (get() as any).selectedCurrency;
       let currency = (network === 'SOL' && selectedCurrency) ? selectedCurrency : network;
-      if (network === 'SOL' && (!selectedCurrency || selectedCurrency === 'SOL')) currency = 'ETH';
 
       // Call API endpoint to place bet from house balance
       const response = await fetch('/api/balance/bet', {
