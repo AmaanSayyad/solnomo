@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useToast } from '@/lib/hooks/useToast';
 import { getBNBConfig } from '@/lib/bnb/config';
 import { getAddress } from 'viem';
@@ -51,10 +51,10 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   const { chainId: activeChainId } = useAccount();
   const publicClient = usePublicClient();
 
-  const { depositFunds, network, walletBalance, refreshWalletBalance, address } = useOverflowStore();
+  const { depositFunds, network, walletBalance, refreshWalletBalance, address } = useSolnomoStore();
   const toast = useToast();
 
-  const selectedCurrency = useOverflowStore(state => state.selectedCurrency);
+  const selectedCurrency = useSolnomoStore(state => state.selectedCurrency);
   const currencySymbol = network === 'SUI' ? 'USDC' : network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM' ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB';
   const networkName = network === 'SUI' ? 'Sui Network' : network === 'SOL' ? 'Solana' : network === 'XLM' ? 'Stellar' : network === 'XTZ' ? 'Tezos' : network === 'NEAR' ? 'NEAR Protocol' : 'BNB Chain';
 

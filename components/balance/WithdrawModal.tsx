@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useToast } from '@/lib/hooks/useToast';
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -24,10 +24,10 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { address, withdrawFunds, houseBalance, network, refreshWalletBalance, isConnected } = useOverflowStore();
+  const { address, withdrawFunds, houseBalance, network, refreshWalletBalance, isConnected } = useSolnomoStore();
   const toast = useToast();
 
-  const selectedCurrency = useOverflowStore(state => state.selectedCurrency);
+  const selectedCurrency = useSolnomoStore(state => state.selectedCurrency);
   const currencySymbol = network === 'SUI' ? 'USDC' : network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM' ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB';
   const networkName = network === 'SUI' ? 'Sui Network' : network === 'SOL' ? 'Solana' : network === 'XLM' ? 'Stellar' : network === 'XTZ' ? 'Tezos' : network === 'NEAR' ? 'NEAR Protocol' : 'BNB Chain';
 

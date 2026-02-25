@@ -4,7 +4,7 @@
  */
 
 import { useAccount } from 'wagmi';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useEffect } from 'react';
 
 /**
@@ -14,13 +14,13 @@ export function useWalletConnection() {
     const { address, isConnected, connector } = useAccount();
 
     // Get store actions
-    const setAddress = useOverflowStore(state => state.setAddress);
-    const setIsConnected = useOverflowStore(state => state.setIsConnected);
-    const setNetwork = useOverflowStore(state => state.setNetwork);
-    const fetchBalance = useOverflowStore(state => state.fetchBalance);
-    const refreshWalletBalance = useOverflowStore(state => state.refreshWalletBalance);
+    const setAddress = useSolnomoStore(state => state.setAddress);
+    const setIsConnected = useSolnomoStore(state => state.setIsConnected);
+    const setNetwork = useSolnomoStore(state => state.setNetwork);
+    const fetchBalance = useSolnomoStore(state => state.fetchBalance);
+    const refreshWalletBalance = useSolnomoStore(state => state.refreshWalletBalance);
 
-    const preferredNetwork = useOverflowStore(state => state.preferredNetwork);
+    const preferredNetwork = useSolnomoStore(state => state.preferredNetwork);
 
     // Sync wallet state with store
     useEffect(() => {

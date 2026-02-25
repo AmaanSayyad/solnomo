@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useDisconnectWallet as useSuiDisconnect } from '@mysten/dapp-kit';
 import { useDisconnect } from 'wagmi';
@@ -11,7 +11,7 @@ export const WalletConnect: React.FC = () => {
   const { mutate: disconnectSui } = useSuiDisconnect();
   const { disconnect: disconnectWagmi } = useDisconnect();
 
-  const { network, address, setConnectModalOpen, disconnect: disconnectStore, setPreferredNetwork } = useOverflowStore();
+  const { network, address, setConnectModalOpen, disconnect: disconnectStore, setPreferredNetwork } = useSolnomoStore();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;

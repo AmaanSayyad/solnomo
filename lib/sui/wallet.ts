@@ -6,7 +6,7 @@
  */
 
 import { useConnectWallet, useCurrentWallet, useCurrentAccount, useDisconnectWallet, useWallets } from '@mysten/dapp-kit';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useEffect } from 'react';
 import { logWalletError, logInfo } from '@/lib/logging/error-logger';
 
@@ -38,9 +38,9 @@ export function useWalletConnection() {
   const wallets = useWallets();
 
   // Get store actions
-  const setAddress = useOverflowStore(state => state.setAddress);
-  const setIsConnected = useOverflowStore(state => state.setIsConnected);
-  const fetchBalance = useOverflowStore(state => state.fetchBalance);
+  const setAddress = useSolnomoStore(state => state.setAddress);
+  const setIsConnected = useSolnomoStore(state => state.setIsConnected);
+  const fetchBalance = useSolnomoStore(state => state.fetchBalance);
 
   // Sync wallet state with store
   useEffect(() => {

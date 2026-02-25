@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { usePathname, useRouter } from 'next/navigation';
 import { Key, ShieldCheck, Lock, ArrowRight, Loader2, Mail, LogOut, Home } from 'lucide-react';
 
 export const AccessCodeGuard: React.FC = () => {
-    const { isConnected, address, accessCode, fetchProfile, disconnect } = useOverflowStore();
+    const { isConnected, address, accessCode, fetchProfile, disconnect } = useSolnomoStore();
     const pathname = usePathname();
     const router = useRouter();
     const [inputValue, setInputValue] = useState('');
@@ -27,7 +27,7 @@ export const AccessCodeGuard: React.FC = () => {
         setStatus('loading');
         setErrorMessage('');
 
-        const currentAddress = useOverflowStore.getState().address;
+        const currentAddress = useSolnomoStore.getState().address;
 
         if (!currentAddress) {
             setStatus('error');

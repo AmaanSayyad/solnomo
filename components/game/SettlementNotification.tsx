@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
  * Displays a popup when a bet is settled (win or loss)
  */
 export const SettlementNotification: React.FC = () => {
-    const lastResult = useOverflowStore(state => state.lastResult);
-    const clearLastResult = useOverflowStore(state => state.clearLastResult);
-    const accountType = useOverflowStore(state => state.accountType);
-    const network = useOverflowStore(state => state.network);
+    const lastResult = useSolnomoStore(state => state.lastResult);
+    const clearLastResult = useSolnomoStore(state => state.clearLastResult);
+    const accountType = useSolnomoStore(state => state.accountType);
+    const network = useSolnomoStore(state => state.network);
 
     const [visible, setVisible] = useState(false);
 

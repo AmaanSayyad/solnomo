@@ -6,7 +6,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useModal } from 'connectkit';
 import { useAccount } from 'wagmi';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 
 interface WalletDiscoveryModalProps {
     isOpen: boolean;
@@ -17,7 +17,7 @@ export const WalletDiscoveryModal: React.FC<WalletDiscoveryModalProps> = ({ isOp
     const { setVisible: setSolanaVisible } = useWalletModal();
     const { setOpen: setBNBVisible } = useModal();
 
-    const setPreferredNetwork = useOverflowStore(state => state.setPreferredNetwork);
+    const setPreferredNetwork = useSolnomoStore(state => state.setPreferredNetwork);
 
     const handleBNBConnect = () => {
         setPreferredNetwork('BNB');

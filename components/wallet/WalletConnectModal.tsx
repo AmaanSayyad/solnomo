@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -11,9 +11,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wallet, Globe, ShieldCheck, Mail } from 'lucide-react';
 
 export const WalletConnectModal: React.FC = () => {
-    const isOpen = useOverflowStore(state => state.isConnectModalOpen);
-    const setOpen = useOverflowStore(state => state.setConnectModalOpen);
-    const setPreferredNetwork = useOverflowStore(state => state.setPreferredNetwork);
+    const isOpen = useSolnomoStore(state => state.isConnectModalOpen);
+    const setOpen = useSolnomoStore(state => state.setConnectModalOpen);
+    const setPreferredNetwork = useSolnomoStore(state => state.setPreferredNetwork);
 
     const { login: loginPrivy } = usePrivy();
     const { select: selectSolanaWallet } = useWallet();
@@ -65,13 +65,13 @@ export const WalletConnectModal: React.FC = () => {
 
             if (address) {
                 setPreferredNetwork('XTZ');
-                useOverflowStore.getState().setNetwork('XTZ');
-                useOverflowStore.getState().setAddress(address);
-                useOverflowStore.getState().setIsConnected(true);
+                useSolnomoStore.getState().setNetwork('XTZ');
+                useSolnomoStore.getState().setAddress(address);
+                useSolnomoStore.getState().setIsConnected(true);
                 // Fetch Tezos mainnet XTZ balance
-                useOverflowStore.getState().refreshWalletBalance();
+                useSolnomoStore.getState().refreshWalletBalance();
                 // Fetch Solnomo house balance for Tezos
-                useOverflowStore.getState().fetchBalance(address);
+                useSolnomoStore.getState().fetchBalance(address);
             }
         } catch (error) {
             console.error("Tezos connection error:", error);
@@ -87,13 +87,13 @@ export const WalletConnectModal: React.FC = () => {
 
             if (address) {
                 setPreferredNetwork('NEAR');
-                useOverflowStore.getState().setNetwork('NEAR');
-                useOverflowStore.getState().setAddress(address);
-                useOverflowStore.getState().setIsConnected(true);
+                useSolnomoStore.getState().setNetwork('NEAR');
+                useSolnomoStore.getState().setAddress(address);
+                useSolnomoStore.getState().setIsConnected(true);
                 // Fetch NEAR house balance
-                useOverflowStore.getState().fetchBalance(address);
+                useSolnomoStore.getState().fetchBalance(address);
                 // Global balance of the wallet
-                useOverflowStore.getState().refreshWalletBalance();
+                useSolnomoStore.getState().refreshWalletBalance();
             }
         } catch (error) {
             console.error("NEAR connection error:", error);

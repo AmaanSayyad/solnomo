@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatUnits } from 'ethers';
 import { Card } from '@/components/ui/Card';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 
 export const WalletInfo: React.FC = () => {
-  const { network, address, isConnected, walletBalance, refreshWalletBalance, selectedCurrency } = useOverflowStore();
+  const { network, address, isConnected, walletBalance, refreshWalletBalance, selectedCurrency } = useSolnomoStore();
 
   // Polling for balance updates
   useEffect(() => {

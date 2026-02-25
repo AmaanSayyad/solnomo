@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useStore, useOverflowStore } from '@/lib/store';
+import { useStore } from '@/lib/store';
 import { ActiveBet } from '@/lib/store/gameSlice';
 import { Card } from '@/components/ui/Card';
 
 export const ActiveRound: React.FC = () => {
   const activeBets = useStore((state) => state.activeBets);
   const currentPrice = useStore((state) => state.currentPrice);
+  const network = useStore((state) => state.network);
+  const selectedCurrency = useStore((state) => state.selectedCurrency);
   const [now, setNow] = useState(Date.now());
-  const { network, selectedCurrency } = useOverflowStore();
   const currencySymbol = network === 'SUI' ? 'USDC' : network === 'SOL' ? (selectedCurrency || 'SOL') : network === 'XLM' ? 'XLM' : network === 'XTZ' ? 'XTZ' : network === 'NEAR' ? 'NEAR' : 'BNB';
 
   // Update timer every 100ms

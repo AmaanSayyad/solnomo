@@ -3,7 +3,7 @@
  */
 
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useOverflowStore } from '@/lib/store';
+import { useSolnomoStore } from '@/lib/store';
 import { useEffect } from 'react';
 import { logWalletError, logInfo } from '@/lib/logging/error-logger';
 
@@ -20,13 +20,13 @@ export function useWalletConnection() {
     const { connected, publicKey, wallet, disconnect: solanaDisconnect } = useWallet();
 
     // Get store actions
-    const setAddress = useOverflowStore(state => state.setAddress);
-    const setIsConnected = useOverflowStore(state => state.setIsConnected);
-    const setNetwork = useOverflowStore(state => state.setNetwork);
-    const fetchBalance = useOverflowStore(state => state.fetchBalance);
-    const refreshWalletBalance = useOverflowStore(state => state.refreshWalletBalance);
+    const setAddress = useSolnomoStore(state => state.setAddress);
+    const setIsConnected = useSolnomoStore(state => state.setIsConnected);
+    const setNetwork = useSolnomoStore(state => state.setNetwork);
+    const fetchBalance = useSolnomoStore(state => state.fetchBalance);
+    const refreshWalletBalance = useSolnomoStore(state => state.refreshWalletBalance);
 
-    const preferredNetwork = useOverflowStore(state => state.preferredNetwork);
+    const preferredNetwork = useSolnomoStore(state => state.preferredNetwork);
 
     // Sync wallet state with store
     useEffect(() => {
